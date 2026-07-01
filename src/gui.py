@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext, colorchooser
 from PIL import ImageTk
 from openpyxl import load_workbook
+from copy import deepcopy
 
 from matplotlib import font_manager
 
@@ -11,22 +12,24 @@ from src.config import load_config
 from src.renderer import create_card
 
 
-# ---------------------------------------------------------
-# System Fonts (MS Word style)
-# ---------------------------------------------------------
+# =========================================================
+# SYSTEM FONTS
+# =========================================================
 def get_system_fonts():
     fonts = {}
     for f in font_manager.fontManager.ttflist:
-        if f.name not in fonts:
-            fonts[f.name] = f.fname
+        fonts.setdefault(f.name, f.fname)
     return fonts
 
 
+# =========================================================
+# MAIN APP
+# =========================================================
 class CardGeneratorGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Card Generator (Word Style + Offset Editor)")
-        self.root.geometry("1000x780")
+        self.root.title("Card Generator Pro")
+        self.root.geometry("1200x800")
 
         base_dir = Path(__file__).resolve().parent.parent
         self.config_obj = load_config(base_dir / "config.json")
@@ -36,18 +39,14 @@ class CardGeneratorGUI:
         self.excel_path = None
         self.output_dir = None
 
-        # ---------------- FONT SYSTEM ----------------
+        # ---------------- FONTS ----------------
         self.font_map = get_system_fonts()
         self.font_names = sorted(self.font_map.keys())
-
         self.font_var = tk.StringVar(value="Arial")
 
-        # ---------------- OFFSET SYSTEM (NEW FEATURE) ----------------
-        self.q_offset = tk.IntVar(value=0)
-        self.a_offset = tk.IntVar(value=0)
-
-        # store base layout (IMPORTANT FIX)
-        self.base_boxes = self.config_obj.boxes.copy()
+        # ---------------- STATE ----------------
+        self.preview_photo = None
+        self.base_boxes = deepcopy(self.config_obj.boxes)
 
         # ---------------- STYLE ----------------
         q = self.config_obj.get_style("question")
@@ -64,130 +63,166 @@ class CardGeneratorGUI:
         self.q_outline = q.get("stroke_fill", "#000000")
         self.a_outline = a.get("stroke_fill", "#000000")
 
-        self.q_outline_enabled = tk.BooleanVar(value=True)
-        self.a_outline_enabled = tk.BooleanVar(value=True)
+        self.q_offset = tk.IntVar(value=0)
+        self.a_offset = tk.IntVar(value=0)
 
-        self.preview_photo = None
+        # =====================================================
+        # LAYOUT (3 PANELS)
+        # =====================================================
+        self.root.columnconfigure(0, weight=1)
+        self.root.columnconfigure(1, weight=3)
+        self.root.rowconfigure(0, weight=1)
 
-        # ---------------- UI FRAME ----------------
-        frm = ttk.Frame(root, padding=10)
-        frm.pack(fill="both", expand=True)
-        self.frm = frm
+        self.sidebar = ttk.Frame(root, padding=10)
+        self.sidebar.grid(row=0, column=0, sticky="nswe")
 
-        # ---------------- FILE PICKERS ----------------
-        self.lbl_template = self._row(frm, 0, "Template", self.select_template)
-        self.lbl_excel = self._row(frm, 1, "Excel", self.select_excel)
-        self.lbl_output = self._row(frm, 2, "Output", self.select_output)
+        self.preview_area = ttk.Frame(root, padding=10)
+        self.preview_area.grid(row=0, column=1, sticky="nswe")
 
-        # ---------------- FONT DROPDOWN ----------------
-        ttk.Label(frm, text="Font").grid(row=3, column=0, sticky="w")
+        # =====================================================
+        # TOP ACTION BAR
+        # =====================================================
+        top_bar = ttk.Frame(self.sidebar)
+        top_bar.pack(fill="x", pady=5)
+
+        ttk.Button(top_bar, text="Generate", command=self.start_generation).pack(side="right")
+
+        # =====================================================
+        # SCROLLABLE SIDEBAR
+        # =====================================================
+        canvas = tk.Canvas(self.sidebar)
+        scrollbar = ttk.Scrollbar(self.sidebar, orient="vertical", command=canvas.yview)
+
+        self.scroll_frame = ttk.Frame(canvas)
+
+        self.scroll_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=self.scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # =====================================================
+        # BUILD UI SECTIONS
+        # =====================================================
+        self.build_project_section()
+        self.build_font_section()
+        self.build_style_section()
+        self.build_layout_section()
+        self.build_color_section()
+        self.build_outline_section()
+        self.build_actions_section()
+
+        # =====================================================
+        # PREVIEW PANEL
+        # =====================================================
+        self.preview_label = ttk.Label(self.preview_area)
+        self.preview_label.pack(expand=True)
+
+        self.log_box = scrolledtext.ScrolledText(self.preview_area, height=10)
+        self.log_box.pack(fill="x", pady=10)
+
+    # =====================================================
+    # UI SECTIONS
+    # =====================================================
+
+    def section(self, title):
+        frame = ttk.LabelFrame(self.scroll_frame, text=title, padding=10)
+        frame.pack(fill="x", pady=8)
+        return frame
+
+    # ---------------- PROJECT ----------------
+    def build_project_section(self):
+        f = self.section("Project")
+
+        ttk.Button(f, text="Template", command=self.select_template).pack(fill="x")
+        ttk.Button(f, text="Excel File", command=self.select_excel).pack(fill="x", pady=2)
+        ttk.Button(f, text="Output Folder", command=self.select_output).pack(fill="x")
+
+    # ---------------- FONT ----------------
+    def build_font_section(self):
+        f = self.section("Typography")
+
+        ttk.Label(f, text="Font").pack(anchor="w")
 
         self.font_dropdown = ttk.Combobox(
-            frm,
+            f,
             textvariable=self.font_var,
             values=self.font_names,
-            state="readonly",
-            width=35
+            state="readonly"
         )
-        self.font_dropdown.grid(row=3, column=1, sticky="w")
-        self.font_dropdown.bind("<<ComboboxSelected>>", lambda e: self.update_preview())
+        self.font_dropdown.pack(fill="x")
 
-        # ---------------- FONT SIZE ----------------
-        self._spin(frm, 4, "Q Max", self.q_max)
-        self._spin(frm, 5, "Q Min", self.q_min)
-        self._spin(frm, 6, "A Max", self.a_max)
-        self._spin(frm, 7, "A Min", self.a_min)
+    # ---------------- STYLE ----------------
+    def build_style_section(self):
+        f = self.section("Font Size")
 
-        # ---------------- COLOR ----------------
-        ttk.Label(frm, text="Question Color").grid(row=8, column=0, sticky="w")
-        self.btn_q_color = tk.Button(frm, bg=self.q_fill, width=4, command=self.pick_q_color)
-        self.btn_q_color.grid(row=8, column=1, sticky="w")
+        ttk.Label(f, text="Question Max").pack(anchor="w")
+        ttk.Spinbox(f, from_=8, to=120, textvariable=self.q_max).pack(fill="x")
 
-        ttk.Label(frm, text="Answer Color").grid(row=9, column=0, sticky="w")
-        self.btn_a_color = tk.Button(frm, bg=self.a_fill, width=4, command=self.pick_a_color)
-        self.btn_a_color.grid(row=9, column=1, sticky="w")
+        ttk.Label(f, text="Question Min").pack(anchor="w")
+        ttk.Spinbox(f, from_=8, to=120, textvariable=self.q_min).pack(fill="x")
 
-        # ---------------- OUTLINE ----------------
-        ttk.Label(frm, text="Question Outline").grid(row=10, column=0, sticky="w")
-        self.btn_q_outline = tk.Button(frm, bg=self.q_outline, width=4, command=self.pick_q_outline)
-        self.btn_q_outline.grid(row=10, column=1)
+        ttk.Label(f, text="Answer Max").pack(anchor="w")
+        ttk.Spinbox(f, from_=8, to=120, textvariable=self.a_max).pack(fill="x")
 
-        ttk.Checkbutton(frm, text="Enable", variable=self.q_outline_enabled,
-                        command=self.update_preview).grid(row=10, column=2)
+        ttk.Label(f, text="Answer Min").pack(anchor="w")
+        ttk.Spinbox(f, from_=8, to=120, textvariable=self.a_min).pack(fill="x")
 
-        ttk.Label(frm, text="Answer Outline").grid(row=11, column=0, sticky="w")
-        self.btn_a_outline = tk.Button(frm, bg=self.a_outline, width=4, command=self.pick_a_outline)
-        self.btn_a_outline.grid(row=11, column=1)
+    # ---------------- LAYOUT ----------------
+    def build_layout_section(self):
+        f = self.section("Layout")
 
-        ttk.Checkbutton(frm, text="Enable", variable=self.a_outline_enabled,
-                        command=self.update_preview).grid(row=11, column=2)
+        ttk.Label(f, text="Question Y Offset").pack(anchor="w")
+        ttk.Spinbox(f, from_=-200, to=200, textvariable=self.q_offset).pack(fill="x")
 
-        # ---------------- OFFSET CONTROLS (NEW FEATURE) ----------------
-        ttk.Label(frm, text="Question Y Offset").grid(row=12, column=0, sticky="w")
-        ttk.Spinbox(frm, from_=-200, to=200, textvariable=self.q_offset, width=6)\
-            .grid(row=12, column=1)
+        ttk.Label(f, text="Answer Y Offset").pack(anchor="w")
+        ttk.Spinbox(f, from_=-200, to=200, textvariable=self.a_offset).pack(fill="x")
 
-        ttk.Label(frm, text="Answer Y Offset").grid(row=13, column=0, sticky="w")
-        ttk.Spinbox(frm, from_=-200, to=200, textvariable=self.a_offset, width=6)\
-            .grid(row=13, column=1)
+    # ---------------- COLORS ----------------
+    def build_color_section(self):
+        f = self.section("Colors")
 
-        # auto preview update
-        self.q_offset.trace_add("write", lambda *args: self.update_preview())
-        self.a_offset.trace_add("write", lambda *args: self.update_preview())
+        ttk.Button(f, text="Question Color", command=self.pick_q_color).pack(fill="x")
+        ttk.Button(f, text="Answer Color", command=self.pick_a_color).pack(fill="x")
 
-        # ---------------- ACTION BUTTONS ----------------
-        ttk.Button(frm, text="Generate", command=self.start_generation)\
-            .grid(row=14, column=0, pady=10)
+    # ---------------- OUTLINE ----------------
+    def build_outline_section(self):
+        f = self.section("Outline")
 
-        ttk.Button(frm, text="Preview", command=self.update_preview)\
-            .grid(row=14, column=1)
+        ttk.Button(f, text="Question Outline", command=self.pick_q_outline).pack(fill="x")
+        ttk.Button(f, text="Answer Outline", command=self.pick_a_outline).pack(fill="x")
 
-        # ---------------- PREVIEW ----------------
-        self.preview_label = ttk.Label(frm)
-        self.preview_label.grid(row=15, column=0, columnspan=3, pady=10)
+    # ---------------- ACTIONS ----------------
+    def build_actions_section(self):
+        f = self.section("Actions")
 
-        # ---------------- LOG ----------------
-        self.log_box = scrolledtext.ScrolledText(frm, height=12)
-        self.log_box.grid(row=16, column=0, columnspan=3, sticky="nsew")
+        ttk.Button(f, text="Preview", command=self.update_preview).pack(fill="x")
+        ttk.Button(f, text="Generate Cards", command=self.start_generation).pack(fill="x", pady=5)
 
     # =====================================================
-    # HELPERS
-    # =====================================================
-
-    def _row(self, parent, r, text, cmd):
-        ttk.Label(parent, text=text, width=12).grid(row=r, column=0, sticky="w")
-        lbl = ttk.Label(parent, text="Not selected", width=40)
-        lbl.grid(row=r, column=1, sticky="w")
-        ttk.Button(parent, text="Browse", command=cmd).grid(row=r, column=2)
-        return lbl
-
-    def _spin(self, parent, r, text, var):
-        ttk.Label(parent, text=text).grid(row=r, column=0, sticky="w")
-        ttk.Spinbox(parent, from_=8, to=120, textvariable=var, width=6)\
-            .grid(row=r, column=1, sticky="w")
-
-    # =====================================================
-    # FILES
+    # FILE PICKERS
     # =====================================================
 
     def select_template(self):
         f = filedialog.askopenfilename(filetypes=[("Images", "*.png *.jpg *.jpeg")])
         if f:
             self.template_path = Path(f)
-            self.lbl_template.config(text=self.template_path.name)
             self.update_preview()
 
     def select_excel(self):
         f = filedialog.askopenfilename(filetypes=[("Excel", "*.xlsx")])
         if f:
             self.excel_path = Path(f)
-            self.lbl_excel.config(text=self.excel_path.name)
 
     def select_output(self):
         f = filedialog.askdirectory()
         if f:
             self.output_dir = Path(f)
-            self.lbl_output.config(text=str(self.output_dir))
 
     # =====================================================
     # COLORS
@@ -197,86 +232,61 @@ class CardGeneratorGUI:
         c = colorchooser.askcolor()[1]
         if c:
             self.q_fill = c
-            self.btn_q_color.config(bg=c)
             self.update_preview()
 
     def pick_a_color(self):
         c = colorchooser.askcolor()[1]
         if c:
             self.a_fill = c
-            self.btn_a_color.config(bg=c)
             self.update_preview()
 
     def pick_q_outline(self):
         c = colorchooser.askcolor()[1]
         if c:
             self.q_outline = c
-            self.btn_q_outline.config(bg=c)
             self.update_preview()
 
     def pick_a_outline(self):
         c = colorchooser.askcolor()[1]
         if c:
             self.a_outline = c
-            self.btn_a_outline.config(bg=c)
             self.update_preview()
 
     # =====================================================
-    # PREVIEW (CORE FIXED LOGIC)
+    # PREVIEW
     # =====================================================
 
     def update_preview(self):
         if not self.template_path:
             return
 
-        # restore base layout every time (PREVENT DRIFT BUG)
-        self.config_obj.boxes = self.base_boxes.copy()
+        config = deepcopy(self.config_obj)
 
-        # apply offsets safely
         q = self.base_boxes["question"]
         a = self.base_boxes["answer"]
 
-        self.config_obj.boxes["question"] = [
-            q[0],
-            q[1] + self.q_offset.get(),
-            q[2],
-            q[3],
-        ]
+        config.boxes["question"] = [q[0], q[1] + self.q_offset.get(), q[2], q[3]]
+        config.boxes["answer"] = [a[0], a[1] + self.a_offset.get(), a[2], a[3]]
 
-        self.config_obj.boxes["answer"] = [
-            a[0],
-            a[1] + self.a_offset.get(),
-            a[2],
-            a[3],
-        ]
+        config.style["question"]["font_max"] = self.q_max.get()
+        config.style["question"]["font_min"] = self.q_min.get()
+        config.style["answer"]["font_max"] = self.a_max.get()
+        config.style["answer"]["font_min"] = self.a_min.get()
 
-        # apply styles
-        self.config_obj.style["question"]["font_max"] = self.q_max.get()
-        self.config_obj.style["question"]["font_min"] = self.q_min.get()
-        self.config_obj.style["answer"]["font_max"] = self.a_max.get()
-        self.config_obj.style["answer"]["font_min"] = self.a_min.get()
-
-        self.config_obj.style["question"]["fill"] = self.q_fill
-        self.config_obj.style["answer"]["fill"] = self.a_fill
-
-        self.config_obj.style["question"]["stroke_fill"] = (
-            self.q_outline if self.q_outline_enabled.get() else None
-        )
-        self.config_obj.style["answer"]["stroke_fill"] = (
-            self.a_outline if self.a_outline_enabled.get() else None
-        )
+        config.style["question"]["fill"] = self.q_fill
+        config.style["answer"]["fill"] = self.a_fill
 
         image = create_card(
             "Sample Question",
             "Sample Answer",
-            output_file=None,
-            config=self.config_obj,
-            template_path=self.template_path,
-            font_path=self.font_map.get(self.font_var.get(), "Arial"),
+            None,
+            config,
+            self.template_path,
+            self.font_map.get(self.font_var.get(), "Arial"),
             preview=True,
         )
 
-        image.thumbnail((320, 450))
+        image.thumbnail((400, 550))
 
         self.preview_photo = ImageTk.PhotoImage(image)
         self.preview_label.configure(image=self.preview_photo)
@@ -293,10 +303,9 @@ class CardGeneratorGUI:
             self.root.after(0, lambda: messagebox.showerror("Error", "Missing inputs"))
             return
 
-        font_path = self.font_map.get(self.font_var.get(), "Arial")
-
         wb = load_workbook(self.excel_path)
         ws = wb.active
+
         self.output_dir.mkdir(exist_ok=True)
 
         for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 1):
@@ -309,7 +318,7 @@ class CardGeneratorGUI:
                 self.output_dir / f"Card_{i:03}.png",
                 self.config_obj,
                 self.template_path,
-                font_path,
+                self.font_map.get(self.font_var.get(), "Arial"),
             )
 
             self.log(f"Generated Card_{i:03}.png")
