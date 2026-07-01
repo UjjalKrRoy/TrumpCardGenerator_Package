@@ -1,364 +1,297 @@
+from pathlib import Path
 import threading
 import tkinter as tk
-from pathlib import Path
-from tkinter import filedialog, messagebox, scrolledtext
-
+from tkinter import ttk, filedialog, messagebox, scrolledtext, colorchooser
+from PIL import ImageTk
 from openpyxl import load_workbook
+
+from matplotlib import font_manager
 
 from src.config import load_config
 from src.renderer import create_card
 
 
-class CardGeneratorGUI:
+# ---------------------------------------------------------
+# Font resolver (MS Word style system font access)
+# ---------------------------------------------------------
+def get_system_fonts():
+    fonts = {}
+    for f in font_manager.fontManager.ttflist:
+        if f.name not in fonts:
+            fonts[f.name] = f.fname
+    return fonts
 
+
+class CardGeneratorGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Trump Card Generator")
-        self.root.geometry("800x650")
-        self.root.resizable(False, False)
+        self.root.title("Card Generator (Word Style Fonts)")
+        self.root.geometry("980x750")
 
-        # -------------------------------
-        # Variables
-        # -------------------------------
+        base_dir = Path(__file__).resolve().parent.parent
+        self.config_obj = load_config(base_dir / "config.json")
+
+        # ---------------- Paths ----------------
         self.template_path = None
-        self.font_path = None
         self.excel_path = None
         self.output_dir = None
 
-        # -------------------------------
-        # Title
-        # -------------------------------
-        title = tk.Label(
-            root,
-            text="Trump Card Generator",
-            font=("Arial", 18, "bold")
+        # ---------------- Fonts (WORD STYLE) ----------------
+        self.font_map = get_system_fonts()
+        self.font_names = sorted(self.font_map.keys())
+        self.font_var = tk.StringVar(value="Arial")  # default
+
+        # ---------------- Config ----------------
+        q = self.config_obj.get_style("question")
+        a = self.config_obj.get_style("answer")
+
+        self.q_max = tk.IntVar(value=q.get("font_max", 32))
+        self.q_min = tk.IntVar(value=q.get("font_min", 18))
+        self.a_max = tk.IntVar(value=a.get("font_max", 28))
+        self.a_min = tk.IntVar(value=a.get("font_min", 20))
+
+        self.q_fill = q.get("fill", "#FFFFFF")
+        self.a_fill = a.get("fill", "#FFFFFF")
+
+        self.q_outline = q.get("stroke_fill", "#000000")
+        self.a_outline = a.get("stroke_fill", "#000000")
+
+        self.q_outline_enabled = tk.BooleanVar(value=True)
+        self.a_outline_enabled = tk.BooleanVar(value=True)
+
+        self.preview_photo = None
+
+        # ---------------- UI ----------------
+        frm = ttk.Frame(root, padding=10)
+        frm.pack(fill="both", expand=True)
+        self.frm = frm
+
+        # ---------------- File inputs ----------------
+        self.lbl_template = self._row(frm, 0, "Template", self.select_template)
+        self.lbl_excel = self._row(frm, 1, "Excel", self.select_excel)
+        self.lbl_output = self._row(frm, 2, "Output", self.select_output)
+
+        # ---------------- FONT DROPDOWN (MS WORD STYLE) ----------------
+        ttk.Label(frm, text="Font").grid(row=3, column=0, sticky="w")
+
+        self.font_dropdown = ttk.Combobox(
+            frm,
+            textvariable=self.font_var,
+            values=self.font_names,
+            state="readonly",
+            width=35
         )
-        title.pack(pady=10)
+        self.font_dropdown.grid(row=3, column=1, sticky="w")
+        self.font_dropdown.bind("<<ComboboxSelected>>", lambda e: self.update_preview())
 
-        # -------------------------------
-        # Main Frame
-        # -------------------------------
-        frame = tk.Frame(root)
-        frame.pack(fill="x", padx=15)
+        # ---------------- Font sizes ----------------
+        self._spin(frm, 4, "Question Max", self.q_max)
+        self._spin(frm, 5, "Question Min", self.q_min)
+        self._spin(frm, 6, "Answer Max", self.a_max)
+        self._spin(frm, 7, "Answer Min", self.a_min)
 
-        # ===============================
-        # Template
-        # ===============================
-        tk.Label(frame, text="Front Image", width=15, anchor="w").grid(
-            row=0, column=0, pady=5
+        # ---------------- Colors ----------------
+        ttk.Label(frm, text="Question Color").grid(row=8, column=0, sticky="w")
+        self.btn_q_color = tk.Button(frm, bg=self.q_fill, width=4, command=self.pick_q_color)
+        self.btn_q_color.grid(row=8, column=1, sticky="w")
+
+        ttk.Label(frm, text="Answer Color").grid(row=9, column=0, sticky="w")
+        self.btn_a_color = tk.Button(frm, bg=self.a_fill, width=4, command=self.pick_a_color)
+        self.btn_a_color.grid(row=9, column=1, sticky="w")
+
+        # ---------------- Outline ----------------
+        ttk.Label(frm, text="Question Outline").grid(row=10, column=0, sticky="w")
+        self.btn_q_outline = tk.Button(frm, bg=self.q_outline, width=4, command=self.pick_q_outline)
+        self.btn_q_outline.grid(row=10, column=1)
+
+        ttk.Checkbutton(frm, text="Enable", variable=self.q_outline_enabled,
+                        command=self.update_preview).grid(row=10, column=2)
+
+        ttk.Label(frm, text="Answer Outline").grid(row=11, column=0, sticky="w")
+        self.btn_a_outline = tk.Button(frm, bg=self.a_outline, width=4, command=self.pick_a_outline)
+        self.btn_a_outline.grid(row=11, column=1)
+
+        ttk.Checkbutton(frm, text="Enable", variable=self.a_outline_enabled,
+                        command=self.update_preview).grid(row=11, column=2)
+
+        # ---------------- Buttons ----------------
+        ttk.Button(frm, text="Generate", command=self.start_generation)\
+            .grid(row=12, column=0, pady=10)
+
+        ttk.Button(frm, text="Preview", command=self.update_preview)\
+            .grid(row=12, column=1)
+
+        # ---------------- Preview ----------------
+        self.preview_label = ttk.Label(frm)
+        self.preview_label.grid(row=13, column=0, columnspan=3, pady=10)
+
+        # ---------------- Log ----------------
+        self.log_box = scrolledtext.ScrolledText(frm, height=12)
+        self.log_box.grid(row=14, column=0, columnspan=3, sticky="nsew")
+
+    # =====================================================
+    # Helpers
+    # =====================================================
+
+    def _row(self, parent, r, text, cmd):
+        ttk.Label(parent, text=text, width=12).grid(row=r, column=0, sticky="w")
+        lbl = ttk.Label(parent, text="Not selected", width=40)
+        lbl.grid(row=r, column=1, sticky="w")
+        ttk.Button(parent, text="Browse", command=cmd).grid(row=r, column=2)
+        return lbl
+
+    def _spin(self, parent, r, text, var):
+        ttk.Label(parent, text=text).grid(row=r, column=0, sticky="w")
+        ttk.Spinbox(parent, from_=8, to=120, textvariable=var, width=6)\
+            .grid(row=r, column=1, sticky="w")
+
+    # =====================================================
+    # File selection
+    # =====================================================
+
+    def select_template(self):
+        f = filedialog.askopenfilename(filetypes=[("Images", "*.png *.jpg *.jpeg")])
+        if f:
+            self.template_path = Path(f)
+            self.lbl_template.config(text=self.template_path.name)
+            self.update_preview()
+
+    def select_excel(self):
+        f = filedialog.askopenfilename(filetypes=[("Excel", "*.xlsx")])
+        if f:
+            self.excel_path = Path(f)
+            self.lbl_excel.config(text=self.excel_path.name)
+
+    def select_output(self):
+        f = filedialog.askdirectory()
+        if f:
+            self.output_dir = Path(f)
+            self.lbl_output.config(text=str(self.output_dir))
+
+    # =====================================================
+    # Colors
+    # =====================================================
+
+    def pick_q_color(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.q_fill = c
+            self.btn_q_color.config(bg=c)
+            self.update_preview()
+
+    def pick_a_color(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.a_fill = c
+            self.btn_a_color.config(bg=c)
+            self.update_preview()
+
+    def pick_q_outline(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.q_outline = c
+            self.btn_q_outline.config(bg=c)
+            self.update_preview()
+
+    def pick_a_outline(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.a_outline = c
+            self.btn_a_outline.config(bg=c)
+            self.update_preview()
+
+    # =====================================================
+    # Preview (IMPORTANT FIX AREA)
+    # =====================================================
+
+    def update_preview(self):
+        if not self.template_path:
+            return
+
+        # PUSH UI STATE → CONFIG
+        self.config_obj.style["question"]["font_max"] = self.q_max.get()
+        self.config_obj.style["question"]["font_min"] = self.q_min.get()
+        self.config_obj.style["answer"]["font_max"] = self.a_max.get()
+        self.config_obj.style["answer"]["font_min"] = self.a_min.get()
+
+        self.config_obj.style["question"]["fill"] = self.q_fill
+        self.config_obj.style["answer"]["fill"] = self.a_fill
+
+        self.config_obj.style["question"]["stroke_fill"] = (
+            self.q_outline if self.q_outline_enabled.get() else None
+        )
+        self.config_obj.style["answer"]["stroke_fill"] = (
+            self.a_outline if self.a_outline_enabled.get() else None
         )
 
-        self.lbl_template = tk.Label(
-            frame,
-            text="Not Selected",
-            width=50,
-            anchor="w",
-            relief="sunken"
-        )
-        self.lbl_template.grid(row=0, column=1, padx=5)
-
-        tk.Button(
-            frame,
-            text="Browse",
-            command=self.select_template
-        ).grid(row=0, column=2)
-
-        # ===============================
-        # Font
-        # ===============================
-        tk.Label(frame, text="Font", width=15, anchor="w").grid(
-            row=1, column=0, pady=5
+        image = create_card(
+            "Sample Question",
+            "Sample Answer",
+            output_file=None,
+            config=self.config_obj,
+            template_path=self.template_path,
+            font_path=self.font_map.get(self.font_var.get(), None),
+            preview=True,
         )
 
-        self.lbl_font = tk.Label(
-            frame,
-            text="Not Selected",
-            width=50,
-            anchor="w",
-            relief="sunken"
-        )
-        self.lbl_font.grid(row=1, column=1, padx=5)
+        image.thumbnail((320, 450))
 
-        tk.Button(
-            frame,
-            text="Browse",
-            command=self.select_font
-        ).grid(row=1, column=2)
+        self.preview_photo = ImageTk.PhotoImage(image)
+        self.preview_label.configure(image=self.preview_photo)
 
-        # ===============================
-        # Excel
-        # ===============================
-        tk.Label(frame, text="Excel File", width=15, anchor="w").grid(
-            row=2, column=0, pady=5
-        )
+    # =====================================================
+    # Generation
+    # =====================================================
 
-        self.lbl_excel = tk.Label(
-            frame,
-            text="Not Selected",
-            width=50,
-            anchor="w",
-            relief="sunken"
-        )
-        self.lbl_excel.grid(row=2, column=1, padx=5)
+    def start_generation(self):
+        threading.Thread(target=self.generate_cards, daemon=True).start()
 
-        tk.Button(
-            frame,
-            text="Browse",
-            command=self.select_excel
-        ).grid(row=2, column=2)
+    def generate_cards(self):
+        if not all([self.template_path, self.excel_path, self.output_dir]):
+            self.root.after(0, lambda: messagebox.showerror("Error", "Missing inputs"))
+            return
 
-        # ===============================
-        # Output Folder
-        # ===============================
-        tk.Label(frame, text="Output Folder", width=15, anchor="w").grid(
-            row=3, column=0, pady=5
-        )
+        font_path = self.font_map.get(self.font_var.get(), None)
 
-        self.lbl_output = tk.Label(
-            frame,
-            text="Not Selected",
-            width=50,
-            anchor="w",
-            relief="sunken"
-        )
-        self.lbl_output.grid(row=3, column=1, padx=5)
+        wb = load_workbook(self.excel_path)
+        ws = wb.active
+        self.output_dir.mkdir(exist_ok=True)
 
-        tk.Button(
-            frame,
-            text="Browse",
-            command=self.select_output
-        ).grid(row=3, column=2)
+        count = 0
 
-        # ===============================
-        # Generate Button
-        # ===============================
-        self.btn_generate = tk.Button(
-            root,
-            text="Generate Cards",
-            bg="green",
-            fg="white",
-            font=("Arial", 12, "bold"),
-            command=self.start_generation
-        )
+        for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 1):
+            if not row or not row[0] or not row[1]:
+                continue
 
-        self.btn_generate.pack(pady=15)
+            create_card(
+                str(row[0]),
+                str(row[1]),
+                self.output_dir / f"Card_{i:03}.png",
+                self.config_obj,
+                self.template_path,
+                font_path,
+            )
 
-        # ===============================
-        # Log Window
-        # ===============================
-        self.log_box = scrolledtext.ScrolledText(
-            root,
-            width=95,
-            height=22
-        )
+            self.log(f"Generated Card_{i:03}.png")
+            count += 1
 
-        self.log_box.pack(padx=10, pady=10)
+        self.root.after(0, lambda: messagebox.showinfo("Done", f"{count} cards generated"))
 
     # =====================================================
     # Logging
     # =====================================================
 
-    def log(self, message):
-        self.root.after(0, lambda: self._append_log(message))
-
-    def _append_log(self, message):
-        self.log_box.insert(tk.END, message + "\n")
-        self.log_box.see(tk.END)
-
-    # =====================================================
-    # Browse Buttons
-    # =====================================================
-
-    def select_template(self):
-
-        file = filedialog.askopenfilename(
-
-            title="Select Front Image",
-
-            filetypes=[
-                ("Image Files", "*.png *.jpg *.jpeg")
-            ]
-        )
-
-        if file:
-            self.template_path = Path(file)
-            self.lbl_template.config(text=self.template_path.name)
-            self.log(f"🖼 Template : {self.template_path}")
-
-    def select_font(self):
-
-        file = filedialog.askopenfilename(
-
-            title="Select Font",
-
-            filetypes=[
-                ("TrueType Font", "*.ttf")
-            ]
-        )
-
-        if file:
-            self.font_path = Path(file)
-            self.lbl_font.config(text=self.font_path.name)
-            self.log(f"🔤 Font : {self.font_path}")
-
-    def select_excel(self):
-
-        file = filedialog.askopenfilename(
-
-            title="Select Excel File",
-
-            filetypes=[
-                ("Excel Files", "*.xlsx")
-            ]
-        )
-
-        if file:
-            self.excel_path = Path(file)
-            self.lbl_excel.config(text=self.excel_path.name)
-            self.log(f"📄 Excel : {self.excel_path}")
-
-    def select_output(self):
-
-        folder = filedialog.askdirectory(
-            title="Select Output Folder"
-        )
-
-        if folder:
-            self.output_dir = Path(folder)
-            self.lbl_output.config(text=str(self.output_dir))
-            self.log(f"📁 Output : {self.output_dir}")
-
-    # =====================================================
-    # Generate
-    # =====================================================
-
-    def start_generation(self):
-
-        if not self.template_path:
-            messagebox.showerror("Error", "Please select Front Image.")
-            return
-
-        if not self.font_path:
-            messagebox.showerror("Error", "Please select Font.")
-            return
-
-        if not self.excel_path:
-            messagebox.showerror("Error", "Please select Excel file.")
-            return
-
-        if not self.output_dir:
-            messagebox.showerror("Error", "Please select Output folder.")
-            return
-
-        self.btn_generate.config(state=tk.DISABLED)
-
-        thread = threading.Thread(
-            target=self.generate_cards,
-            daemon=True
-        )
-
-        thread.start()
-
-    # =====================================================
-    # Main Generation
-    # =====================================================
-
-    def generate_cards(self):
-
-        try:
-
-            base_dir = Path(__file__).resolve().parent.parent
-
-            config = load_config(
-                base_dir / "config.json"
+    def log(self, msg):
+        self.root.after(
+            0,
+            lambda: (
+                self.log_box.insert("end", msg + "\n"),
+                self.log_box.see("end")
             )
-
-            wb = load_workbook(self.excel_path)
-            ws = wb.active
-
-            self.output_dir.mkdir(
-                parents=True,
-                exist_ok=True
-            )
-
-            self.log("")
-            self.log("===================================")
-            self.log("Starting Card Generation")
-            self.log("===================================")
-
-            count = 0
-
-            for index, row in enumerate(
-                    ws.iter_rows(min_row=2, values_only=True),
-                    start=1):
-
-                if not row:
-                    continue
-
-                if row[0] is None or row[1] is None:
-                    self.log(f"⚠ Skipping row {index}")
-                    continue
-
-                question = str(row[0]).strip()
-                answer = str(row[1]).strip()
-
-                output_file = (
-                    self.output_dir /
-                    f"Card_{index:03}.png"
-                )
-
-                create_card(
-                    question=question,
-                    answer=answer,
-                    output_file=output_file,
-                    config=config,
-                    template_path=self.template_path,
-                    font_path=self.font_path
-                )
-
-                count += 1
-
-                self.log(
-                    f"✅ Generated : {output_file.name}"
-                )
-
-            self.log("")
-            self.log(f"🎉 Successfully generated {count} cards.")
-
-            self.root.after(
-                0,
-                lambda: messagebox.showinfo(
-                    "Completed",
-                    f"{count} cards generated successfully."
-                )
-            )
-
-        except Exception as e:
-
-            self.root.after(
-                0,
-                lambda: messagebox.showerror(
-                    "Error",
-                    str(e)
-                )
-            )
-
-            self.log(f"❌ {e}")
-
-        finally:
-
-            self.root.after(
-                0,
-                lambda: self.btn_generate.config(
-                    state=tk.NORMAL
-                )
-            )
+        )
 
 
 if __name__ == "__main__":
-
     root = tk.Tk()
-
-    CardGeneratorGUI(root)
-
+    app = CardGeneratorGUI(root)
     root.mainloop()
