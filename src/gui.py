@@ -12,7 +12,7 @@ from src.renderer import create_card
 
 
 # ---------------------------------------------------------
-# Font resolver (MS Word style system font access)
+# System Fonts (MS Word style)
 # ---------------------------------------------------------
 def get_system_fonts():
     fonts = {}
@@ -25,23 +25,31 @@ def get_system_fonts():
 class CardGeneratorGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Card Generator (Word Style Fonts)")
-        self.root.geometry("980x750")
+        self.root.title("Card Generator (Word Style + Offset Editor)")
+        self.root.geometry("1000x780")
 
         base_dir = Path(__file__).resolve().parent.parent
         self.config_obj = load_config(base_dir / "config.json")
 
-        # ---------------- Paths ----------------
+        # ---------------- FILES ----------------
         self.template_path = None
         self.excel_path = None
         self.output_dir = None
 
-        # ---------------- Fonts (WORD STYLE) ----------------
+        # ---------------- FONT SYSTEM ----------------
         self.font_map = get_system_fonts()
         self.font_names = sorted(self.font_map.keys())
-        self.font_var = tk.StringVar(value="Arial")  # default
 
-        # ---------------- Config ----------------
+        self.font_var = tk.StringVar(value="Arial")
+
+        # ---------------- OFFSET SYSTEM (NEW FEATURE) ----------------
+        self.q_offset = tk.IntVar(value=0)
+        self.a_offset = tk.IntVar(value=0)
+
+        # store base layout (IMPORTANT FIX)
+        self.base_boxes = self.config_obj.boxes.copy()
+
+        # ---------------- STYLE ----------------
         q = self.config_obj.get_style("question")
         a = self.config_obj.get_style("answer")
 
@@ -61,17 +69,17 @@ class CardGeneratorGUI:
 
         self.preview_photo = None
 
-        # ---------------- UI ----------------
+        # ---------------- UI FRAME ----------------
         frm = ttk.Frame(root, padding=10)
         frm.pack(fill="both", expand=True)
         self.frm = frm
 
-        # ---------------- File inputs ----------------
+        # ---------------- FILE PICKERS ----------------
         self.lbl_template = self._row(frm, 0, "Template", self.select_template)
         self.lbl_excel = self._row(frm, 1, "Excel", self.select_excel)
         self.lbl_output = self._row(frm, 2, "Output", self.select_output)
 
-        # ---------------- FONT DROPDOWN (MS WORD STYLE) ----------------
+        # ---------------- FONT DROPDOWN ----------------
         ttk.Label(frm, text="Font").grid(row=3, column=0, sticky="w")
 
         self.font_dropdown = ttk.Combobox(
@@ -84,13 +92,13 @@ class CardGeneratorGUI:
         self.font_dropdown.grid(row=3, column=1, sticky="w")
         self.font_dropdown.bind("<<ComboboxSelected>>", lambda e: self.update_preview())
 
-        # ---------------- Font sizes ----------------
-        self._spin(frm, 4, "Question Max", self.q_max)
-        self._spin(frm, 5, "Question Min", self.q_min)
-        self._spin(frm, 6, "Answer Max", self.a_max)
-        self._spin(frm, 7, "Answer Min", self.a_min)
+        # ---------------- FONT SIZE ----------------
+        self._spin(frm, 4, "Q Max", self.q_max)
+        self._spin(frm, 5, "Q Min", self.q_min)
+        self._spin(frm, 6, "A Max", self.a_max)
+        self._spin(frm, 7, "A Min", self.a_min)
 
-        # ---------------- Colors ----------------
+        # ---------------- COLOR ----------------
         ttk.Label(frm, text="Question Color").grid(row=8, column=0, sticky="w")
         self.btn_q_color = tk.Button(frm, bg=self.q_fill, width=4, command=self.pick_q_color)
         self.btn_q_color.grid(row=8, column=1, sticky="w")
@@ -99,7 +107,7 @@ class CardGeneratorGUI:
         self.btn_a_color = tk.Button(frm, bg=self.a_fill, width=4, command=self.pick_a_color)
         self.btn_a_color.grid(row=9, column=1, sticky="w")
 
-        # ---------------- Outline ----------------
+        # ---------------- OUTLINE ----------------
         ttk.Label(frm, text="Question Outline").grid(row=10, column=0, sticky="w")
         self.btn_q_outline = tk.Button(frm, bg=self.q_outline, width=4, command=self.pick_q_outline)
         self.btn_q_outline.grid(row=10, column=1)
@@ -114,23 +122,36 @@ class CardGeneratorGUI:
         ttk.Checkbutton(frm, text="Enable", variable=self.a_outline_enabled,
                         command=self.update_preview).grid(row=11, column=2)
 
-        # ---------------- Buttons ----------------
-        ttk.Button(frm, text="Generate", command=self.start_generation)\
-            .grid(row=12, column=0, pady=10)
-
-        ttk.Button(frm, text="Preview", command=self.update_preview)\
+        # ---------------- OFFSET CONTROLS (NEW FEATURE) ----------------
+        ttk.Label(frm, text="Question Y Offset").grid(row=12, column=0, sticky="w")
+        ttk.Spinbox(frm, from_=-200, to=200, textvariable=self.q_offset, width=6)\
             .grid(row=12, column=1)
 
-        # ---------------- Preview ----------------
-        self.preview_label = ttk.Label(frm)
-        self.preview_label.grid(row=13, column=0, columnspan=3, pady=10)
+        ttk.Label(frm, text="Answer Y Offset").grid(row=13, column=0, sticky="w")
+        ttk.Spinbox(frm, from_=-200, to=200, textvariable=self.a_offset, width=6)\
+            .grid(row=13, column=1)
 
-        # ---------------- Log ----------------
+        # auto preview update
+        self.q_offset.trace_add("write", lambda *args: self.update_preview())
+        self.a_offset.trace_add("write", lambda *args: self.update_preview())
+
+        # ---------------- ACTION BUTTONS ----------------
+        ttk.Button(frm, text="Generate", command=self.start_generation)\
+            .grid(row=14, column=0, pady=10)
+
+        ttk.Button(frm, text="Preview", command=self.update_preview)\
+            .grid(row=14, column=1)
+
+        # ---------------- PREVIEW ----------------
+        self.preview_label = ttk.Label(frm)
+        self.preview_label.grid(row=15, column=0, columnspan=3, pady=10)
+
+        # ---------------- LOG ----------------
         self.log_box = scrolledtext.ScrolledText(frm, height=12)
-        self.log_box.grid(row=14, column=0, columnspan=3, sticky="nsew")
+        self.log_box.grid(row=16, column=0, columnspan=3, sticky="nsew")
 
     # =====================================================
-    # Helpers
+    # HELPERS
     # =====================================================
 
     def _row(self, parent, r, text, cmd):
@@ -146,7 +167,7 @@ class CardGeneratorGUI:
             .grid(row=r, column=1, sticky="w")
 
     # =====================================================
-    # File selection
+    # FILES
     # =====================================================
 
     def select_template(self):
@@ -169,7 +190,7 @@ class CardGeneratorGUI:
             self.lbl_output.config(text=str(self.output_dir))
 
     # =====================================================
-    # Colors
+    # COLORS
     # =====================================================
 
     def pick_q_color(self):
@@ -201,14 +222,35 @@ class CardGeneratorGUI:
             self.update_preview()
 
     # =====================================================
-    # Preview (IMPORTANT FIX AREA)
+    # PREVIEW (CORE FIXED LOGIC)
     # =====================================================
 
     def update_preview(self):
         if not self.template_path:
             return
 
-        # PUSH UI STATE → CONFIG
+        # restore base layout every time (PREVENT DRIFT BUG)
+        self.config_obj.boxes = self.base_boxes.copy()
+
+        # apply offsets safely
+        q = self.base_boxes["question"]
+        a = self.base_boxes["answer"]
+
+        self.config_obj.boxes["question"] = [
+            q[0],
+            q[1] + self.q_offset.get(),
+            q[2],
+            q[3],
+        ]
+
+        self.config_obj.boxes["answer"] = [
+            a[0],
+            a[1] + self.a_offset.get(),
+            a[2],
+            a[3],
+        ]
+
+        # apply styles
         self.config_obj.style["question"]["font_max"] = self.q_max.get()
         self.config_obj.style["question"]["font_min"] = self.q_min.get()
         self.config_obj.style["answer"]["font_max"] = self.a_max.get()
@@ -230,7 +272,7 @@ class CardGeneratorGUI:
             output_file=None,
             config=self.config_obj,
             template_path=self.template_path,
-            font_path=self.font_map.get(self.font_var.get(), None),
+            font_path=self.font_map.get(self.font_var.get(), "Arial"),
             preview=True,
         )
 
@@ -240,7 +282,7 @@ class CardGeneratorGUI:
         self.preview_label.configure(image=self.preview_photo)
 
     # =====================================================
-    # Generation
+    # GENERATION
     # =====================================================
 
     def start_generation(self):
@@ -251,13 +293,11 @@ class CardGeneratorGUI:
             self.root.after(0, lambda: messagebox.showerror("Error", "Missing inputs"))
             return
 
-        font_path = self.font_map.get(self.font_var.get(), None)
+        font_path = self.font_map.get(self.font_var.get(), "Arial")
 
         wb = load_workbook(self.excel_path)
         ws = wb.active
         self.output_dir.mkdir(exist_ok=True)
-
-        count = 0
 
         for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 1):
             if not row or not row[0] or not row[1]:
@@ -273,12 +313,11 @@ class CardGeneratorGUI:
             )
 
             self.log(f"Generated Card_{i:03}.png")
-            count += 1
 
-        self.root.after(0, lambda: messagebox.showinfo("Done", f"{count} cards generated"))
+        self.root.after(0, lambda: messagebox.showinfo("Done", "Generation complete"))
 
     # =====================================================
-    # Logging
+    # LOGGING
     # =====================================================
 
     def log(self, msg):
@@ -293,5 +332,5 @@ class CardGeneratorGUI:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = CardGeneratorGUI(root)
+    CardGeneratorGUI(root)
     root.mainloop()
