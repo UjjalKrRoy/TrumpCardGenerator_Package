@@ -26,10 +26,74 @@ def get_system_fonts():
 # MAIN APP
 # =========================================================
 class CardGeneratorGUI:
+    def create_scrollable_tab(self):
+        container = ttk.Frame(self.notebook)
+
+        canvas = tk.Canvas(container, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(
+            container,
+            orient="vertical",
+            command=canvas.yview
+        )
+
+        scroll_frame = ttk.Frame(canvas)
+
+        scroll_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+
+        window = canvas.create_window(
+            (0, 0),
+            window=scroll_frame,
+            anchor="nw"
+        )
+
+        canvas.bind(
+            "<Configure>",
+            lambda e: canvas.itemconfigure(
+                window,
+                width=e.width
+            )
+        )
+
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        def _wheel(event):
+            canvas.yview_scroll(int(-event.delta / 120), "units")
+
+        scroll_frame.bind(
+            "<Enter>",
+            lambda e: canvas.bind_all("<MouseWheel>", _wheel)
+        )
+
+        scroll_frame.bind(
+            "<Leave>",
+            lambda e: canvas.unbind_all("<MouseWheel>")
+        )
+
+        return container, scroll_frame
     def __init__(self, root):
         self.root = root
         self.root.title("Card Generator Pro")
-        self.root.geometry("1450x850")
+        
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+
+        width = int(screen_w * 0.9)
+        height = int(screen_h * 0.9)
+
+        x = (screen_w - width) // 2
+        y = (screen_h - height) // 2
+
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
+        self.root.minsize(1100, 700)
+
         self.root.rowconfigure(0, weight=1)
         self.root.columnconfigure(0, weight=1)
 
@@ -68,6 +132,18 @@ class CardGeneratorGUI:
         self.q_offset = tk.IntVar(value=0)
         self.a_offset = tk.IntVar(value=0)
 
+        # Question box resize
+        self.q_left = tk.IntVar(value=0)
+        self.q_right = tk.IntVar(value=0)
+        self.q_top = tk.IntVar(value=0)
+        self.q_bottom = tk.IntVar(value=0)
+
+        # Answer box resize
+        self.a_left = tk.IntVar(value=0)
+        self.a_right = tk.IntVar(value=0)
+        self.a_top = tk.IntVar(value=0)
+        self.a_bottom = tk.IntVar(value=0)
+
         self.q_margin_left = tk.IntVar(value=20)
         self.q_margin_right = tk.IntVar(value=20)
         self.q_margin_top = tk.IntVar(value=10)
@@ -89,20 +165,20 @@ class CardGeneratorGUI:
         self.main_frame = ttk.Frame(self.root)
         self.main_frame.grid(row=0,column=0,sticky="nsew")
 
-        self.main_frame.columnconfigure(0,weight=0)
-        self.main_frame.columnconfigure(1,weight=1)
+        self.main_frame.columnconfigure(0, weight=1, minsize=340)
+        self.main_frame.columnconfigure(1, weight=3)
         self.main_frame.rowconfigure(0,weight=1)
 
         self.left_panel = ttk.Frame(
             self.main_frame,
             padding=10,
-            width=330
+            width=360
         )
 
         self.left_panel.grid(
             row=0,
             column=0,
-            sticky="ns"
+            sticky="nsew"
         )
 
         self.notebook = ttk.Notebook(
@@ -111,14 +187,18 @@ class CardGeneratorGUI:
 
         self.notebook.pack(
             fill="both",
-            expand=True
+            expand=True,
+            padx=2,
+            pady=2
         )
 
         self.left_panel.pack_propagate(False)
+    
+
        
         self.project_tab = ttk.Frame(self.notebook,padding=10)
         self.style_tab = ttk.Frame(self.notebook,padding=10)
-        self.layout_tab = ttk.Frame(self.notebook,padding=10)
+        layout_container, self.layout_tab = self.create_scrollable_tab()
         self.color_tab = ttk.Frame(self.notebook,padding=10)
 
         self.notebook.add(
@@ -132,7 +212,7 @@ class CardGeneratorGUI:
         )
 
         self.notebook.add(
-            self.layout_tab,
+            layout_container,
             text="Layout"
         )
 
@@ -154,6 +234,7 @@ class CardGeneratorGUI:
 
         self.right_panel.rowconfigure(0,weight=1)
         self.right_panel.rowconfigure(1,weight=0)
+        self.right_panel.columnconfigure(0, weight=1)
 
        
         # Auto-update preview when values change
@@ -175,9 +256,19 @@ class CardGeneratorGUI:
             self.a_margin_right,
             self.a_margin_top,
             self.a_margin_bottom,
+
+            self.q_left,
+            self.q_right,
+            self.q_top,
+            self.q_bottom,
+
+            self.a_left,
+            self.a_right,
+            self.a_top,
+            self.a_bottom,
         ):
             var.trace_add("write", lambda *args: self.update_preview())
-
+    
         # =====================================================
         # BUILD UI SECTIONS
         # =====================================================
@@ -192,6 +283,7 @@ class CardGeneratorGUI:
         # =====================================================
         # PREVIEW PANEL
         # =====================================================
+
         preview_frame = ttk.LabelFrame(
             self.right_panel,
             text="Card Preview"
@@ -205,9 +297,12 @@ class CardGeneratorGUI:
             pady=10
         )
 
+        preview_frame.rowconfigure(0, weight=1)
+        preview_frame.columnconfigure(0, weight=1)
+
         self.preview_label = ttk.Label(preview_frame)
-        
-        self.preview_label.pack(expand=True, anchor="center", pady=15)
+                
+        self.preview_label.pack(fill="both", expand=True, padx=10, pady=10)
 
         log_frame = ttk.LabelFrame(
             self.right_panel,
@@ -385,6 +480,40 @@ class CardGeneratorGUI:
 
         ttk.Separator(f, orient="horizontal").pack(fill="x", pady=8)
 
+        ttk.Label(f, text="Question Box Left").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.q_left
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Question Box Right").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.q_right
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Question Box Top").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.q_top
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Question Box Bottom").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.q_bottom
+        ).pack(fill="x")
+        
+        ttk.Separator(f, orient="horizontal").pack(fill="x", pady=8)
+
         # ===========================
         # Answer
         # ===========================
@@ -421,12 +550,48 @@ class CardGeneratorGUI:
         ).pack(fill="x")
 
         ttk.Label(f, text="Answer Bottom Margin").pack(anchor="w")
+        
         ttk.Spinbox(
             f,
             from_=0,
             to=100,
             textvariable=self.a_margin_bottom
         ).pack(fill="x")
+
+        ttk.Separator(f, orient="horizontal").pack(fill="x", pady=8)
+
+        ttk.Label(f, text="Answer Box Left").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.a_left
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Answer Box Right").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.a_right
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Answer Box Top").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.a_top
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Answer Box Bottom").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.a_bottom
+        ).pack(fill="x")
+        
 
     # ---------------- COLORS ----------------
     def build_color_section(self):
@@ -524,8 +689,18 @@ class CardGeneratorGUI:
         q = self.base_boxes["question"]
         a = self.base_boxes["answer"]
 
-        config.boxes["question"] = [q[0], q[1] + self.q_offset.get(), q[2], q[3]]
-        config.boxes["answer"] = [a[0], a[1] + self.a_offset.get(), a[2], a[3]]
+        config.boxes["question"] = [
+            q[0] + self.q_left.get(),
+            q[1] + self.q_top.get() + self.q_offset.get(),
+            q[2] + self.q_right.get(),
+            q[3] + self.q_bottom.get(),
+        ]
+        config.boxes["answer"] = [
+            a[0] + self.a_left.get(),
+            a[1] + self.a_offset.get() + self.a_top.get(),
+            a[2] + self.a_right.get(),
+            a[3] + self.a_bottom.get(),
+        ]
 
         config.style["question"]["font_max"] = self.q_max.get()
         config.style["question"]["font_min"] = self.q_min.get()
@@ -560,7 +735,13 @@ class CardGeneratorGUI:
             preview=True,
         )
 
-        image.thumbnail((550, 700))
+        
+        self.preview_label.update_idletasks()
+
+        w = max(self.preview_label.winfo_width() - 20, 300)
+        h = max(self.preview_label.winfo_height() - 20, 400)
+
+        image.thumbnail((w, h))
 
         self.preview_photo = ImageTk.PhotoImage(image)
         self.preview_label.configure(image=self.preview_photo)
@@ -587,17 +768,17 @@ class CardGeneratorGUI:
         a = self.base_boxes["answer"]
 
         config.boxes["question"] = [
-            q[0],
-            q[1] + self.q_offset.get(),
-            q[2],
-            q[3]
+            q[0] + self.q_left.get(),
+            q[1] + self.q_top.get() + self.q_offset.get(),
+            q[2] + self.q_right.get(),
+            q[3] + self.q_bottom.get(),
         ]
 
         config.boxes["answer"] = [
-            a[0],
-            a[1] + self.a_offset.get(),
-            a[2],
-            a[3]
+            a[0] + self.a_left.get(),
+            a[1] + self.a_offset.get() + self.a_top.get(),
+            a[2] + self.a_right.get(),
+            a[3] + self.a_bottom.get(),
         ]
 
         # Fonts
