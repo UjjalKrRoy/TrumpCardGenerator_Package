@@ -1,0 +1,39 @@
+{
+  "boxes": {
+    "question": [70, 150, 460, 180],
+    "answer": [120, 350, 360, 100]
+  },
+
+  "style": {
+    "question": {
+      "font_max": 32,
+      "font_min": 18,
+      "fill": "#FFFFFF",
+      "stroke_fill": "#000000",
+      "stroke_width": 2,
+
+      "margin_left": 20,
+      "margin_right": 20,
+      "margin_top": 10,
+      "margin_bottom": 10
+    },
+
+    "answer": {
+      "font_max": 28,
+      "font_min": 20,
+      "fill": "#FFFFFF",
+      "stroke_fill": "#000000",
+      "stroke_width": 2,
+
+      "margin_left": 20,
+      "margin_right": 20,
+      "margin_top": 10,
+      "margin_bottom": 10
+    }
+  },
+
+  "output": {
+    "format": "PNG",
+    "quality": 100
+  }
+}
