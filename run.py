@@ -1,10 +1,16 @@
+import ctypes
 import tkinter as tk
 from src.gui import CardGeneratorGUI
 
 
 def main():
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass
+
     root = tk.Tk()
-    app = CardGeneratorGUI(root)
+    CardGeneratorGUI(root)
     root.mainloop()
 
 

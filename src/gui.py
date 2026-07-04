@@ -29,7 +29,9 @@ class CardGeneratorGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Card Generator Pro")
-        self.root.geometry("1200x800")
+        self.root.geometry("1450x850")
+        self.root.rowconfigure(0, weight=1)
+        self.root.columnconfigure(0, weight=1)
 
         base_dir = Path(__file__).resolve().parent.parent
         self.config_obj = load_config(base_dir / "config.json")
@@ -80,6 +82,79 @@ class CardGeneratorGUI:
         self.start_row = tk.IntVar(value=2)
         self.end_row = tk.IntVar(value=0)   # 0 = last row
 
+        # ==========================
+        # Main Frame
+        # ==========================
+
+        self.main_frame = ttk.Frame(self.root)
+        self.main_frame.grid(row=0,column=0,sticky="nsew")
+
+        self.main_frame.columnconfigure(0,weight=0)
+        self.main_frame.columnconfigure(1,weight=1)
+        self.main_frame.rowconfigure(0,weight=1)
+
+        self.left_panel = ttk.Frame(
+            self.main_frame,
+            padding=10,
+            width=330
+        )
+
+        self.left_panel.grid(
+            row=0,
+            column=0,
+            sticky="ns"
+        )
+
+        self.notebook = ttk.Notebook(
+            self.left_panel
+        )
+
+        self.notebook.pack(
+            fill="both",
+            expand=True
+        )
+
+        self.left_panel.pack_propagate(False)
+       
+        self.project_tab = ttk.Frame(self.notebook,padding=10)
+        self.style_tab = ttk.Frame(self.notebook,padding=10)
+        self.layout_tab = ttk.Frame(self.notebook,padding=10)
+        self.color_tab = ttk.Frame(self.notebook,padding=10)
+
+        self.notebook.add(
+            self.project_tab,
+            text="Project"
+        )
+
+        self.notebook.add(
+            self.style_tab,
+            text="Typography"
+        )
+
+        self.notebook.add(
+            self.layout_tab,
+            text="Layout"
+        )
+
+        self.notebook.add(
+            self.color_tab,
+            text="Colors"
+        )
+
+        self.right_panel = ttk.Frame(
+            self.main_frame,
+            padding=15
+        )
+
+        self.right_panel.grid(
+            row=0,
+            column=1,
+            sticky="nsew"
+        )
+
+        self.right_panel.rowconfigure(0,weight=1)
+        self.right_panel.rowconfigure(1,weight=0)
+
        
         # Auto-update preview when values change
         for var in (
@@ -104,46 +179,6 @@ class CardGeneratorGUI:
             var.trace_add("write", lambda *args: self.update_preview())
 
         # =====================================================
-        # LAYOUT (3 PANELS)
-        # =====================================================
-        self.root.columnconfigure(0, weight=1)
-        self.root.columnconfigure(1, weight=3)
-        self.root.rowconfigure(0, weight=1)
-
-        self.sidebar = ttk.Frame(root, padding=10)
-        self.sidebar.grid(row=0, column=0, sticky="nswe")
-
-        self.preview_area = ttk.Frame(root, padding=10)
-        self.preview_area.grid(row=0, column=1, sticky="nswe")
-
-        # =====================================================
-        # TOP ACTION BAR
-        # =====================================================
-        top_bar = ttk.Frame(self.sidebar)
-        top_bar.pack(fill="x", pady=5)
-
-        ttk.Button(top_bar, text="Generate", command=self.start_generation).pack(side="right")
-
-        # =====================================================
-        # SCROLLABLE SIDEBAR
-        # =====================================================
-        canvas = tk.Canvas(self.sidebar)
-        scrollbar = ttk.Scrollbar(self.sidebar, orient="vertical", command=canvas.yview)
-
-        self.scroll_frame = ttk.Frame(canvas)
-
-        self.scroll_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
-        canvas.create_window((0, 0), window=self.scroll_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-
-        # =====================================================
         # BUILD UI SECTIONS
         # =====================================================
         self.build_project_section()
@@ -157,28 +192,82 @@ class CardGeneratorGUI:
         # =====================================================
         # PREVIEW PANEL
         # =====================================================
-        self.preview_label = ttk.Label(self.preview_area)
-        self.preview_label.pack(expand=True)
+        preview_frame = ttk.LabelFrame(
+            self.right_panel,
+            text="Card Preview"
+        )
 
-        self.log_box = scrolledtext.ScrolledText(self.preview_area, height=10)
-        self.log_box.pack(fill="x", pady=10)
+        preview_frame.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+            padx=10,
+            pady=10
+        )
 
+        self.preview_label = ttk.Label(preview_frame)
+        
+        self.preview_label.pack(expand=True, anchor="center", pady=15)
+
+        log_frame = ttk.LabelFrame(
+            self.right_panel,
+            text="Generation Log"
+        )
+
+        log_frame.grid(
+            row=1,
+            column=0,
+            sticky="ew",
+            pady=(10,0)
+        )
+
+        self.log_box = scrolledtext.ScrolledText(
+            log_frame,
+            height=6
+        )
+
+        self.log_box.pack(
+            fill="both",
+            expand=True
+        )
+        self.status = tk.StringVar(value="Ready")
+
+        ttk.Label(
+            self.root,
+            textvariable=self.status,
+            relief="sunken",
+            anchor="w"
+        ).grid(
+            row=1,
+            column=0,
+            sticky="ew"
+        )
     # =====================================================
     # UI SECTIONS
     # =====================================================
 
-    def section(self, title):
-        frame = ttk.LabelFrame(self.scroll_frame, text=title, padding=10)
-        frame.pack(fill="x", pady=8)
+    def section(self,parent,title):
+
+        frame=ttk.LabelFrame(
+            parent,
+            text=title,
+            padding=10
+        )
+
+        frame.pack(fill="x", pady=10)
+
         return frame
 
     # ---------------- PROJECT ----------------
     def build_project_section(self):
-        f = self.section("Project")
+        f = self.section(
+            self.project_tab,
+            "Project"
+        )
 
-        ttk.Button(f, text="Template", command=self.select_template).pack(fill="x")
-        ttk.Button(f, text="Excel File", command=self.select_excel).pack(fill="x", pady=2)
-        ttk.Button(f, text="Output Folder", command=self.select_output).pack(fill="x")
+        ttk.Button(f, text="Select Template", command=self.select_template).pack(fill="x")
+        ttk.Button(f, text="Select Excel File", command=self.select_excel).pack(fill="x", pady=2)
+        ttk.Button(f, text="Select Output Folder", command=self.select_output).pack(fill="x")
 
         ttk.Separator(f, orient="horizontal").pack(fill="x", pady=8)
 
@@ -205,7 +294,10 @@ class CardGeneratorGUI:
 
     # ---------------- FONT ----------------
     def build_font_section(self):
-        f = self.section("Typography")
+        f = self.section(
+            self.style_tab,
+            "Typography"
+        )
 
         ttk.Label(f, text="Font").pack(anchor="w")
 
@@ -224,7 +316,10 @@ class CardGeneratorGUI:
 
     # ---------------- STYLE ----------------
     def build_style_section(self):
-        f = self.section("Font Size")
+        f = self.section(
+            self.style_tab,
+            "Font Size"
+        )
 
         ttk.Label(f, text="Question Max").pack(anchor="w")
         ttk.Spinbox(f, from_=8, to=120, textvariable=self.q_max).pack(fill="x")
@@ -240,7 +335,10 @@ class CardGeneratorGUI:
 
     # ---------------- LAYOUT ----------------
     def build_layout_section(self):
-        f = self.section("Layout")
+        f = self.section(
+            self.layout_tab,
+            "Layout"
+        )
 
         # ===========================
         # Question
@@ -332,21 +430,30 @@ class CardGeneratorGUI:
 
     # ---------------- COLORS ----------------
     def build_color_section(self):
-        f = self.section("Colors")
+        f = self.section(
+            self.color_tab,
+            "Colors"
+        )
 
         ttk.Button(f, text="Question Color", command=self.pick_q_color).pack(fill="x")
         ttk.Button(f, text="Answer Color", command=self.pick_a_color).pack(fill="x")
 
     # ---------------- OUTLINE ----------------
     def build_outline_section(self):
-        f = self.section("Outline")
+        f = self.section(
+            self.color_tab,
+            "Outline"
+        )
 
         ttk.Button(f, text="Question Outline", command=self.pick_q_outline).pack(fill="x")
         ttk.Button(f, text="Answer Outline", command=self.pick_a_outline).pack(fill="x")
 
     # ---------------- ACTIONS ----------------
     def build_actions_section(self):
-        f = self.section("Actions")
+        f = self.section(
+            self.project_tab,
+            "Actions"
+        )
 
         ttk.Button(f, text="Preview", command=self.update_preview).pack(fill="x")
         ttk.Button(f, text="Generate Cards", command=self.start_generation).pack(fill="x", pady=5)
@@ -359,17 +466,22 @@ class CardGeneratorGUI:
         f = filedialog.askopenfilename(filetypes=[("Images", "*.png *.jpg *.jpeg")])
         if f:
             self.template_path = Path(f)
+            self.status.set(f"Template: {self.template_path.name}")
             self.update_preview()
 
     def select_excel(self):
         f = filedialog.askopenfilename(filetypes=[("Excel", "*.xlsx")])
         if f:
             self.excel_path = Path(f)
+            self.status.set(f"Excel: {self.excel_path.name}")
+            self.update_preview()
 
     def select_output(self):
         f = filedialog.askdirectory()
         if f:
             self.output_dir = Path(f)
+            self.status.set(f"Output: {self.output_dir}")
+            self.update_preview()
 
     # =====================================================
     # COLORS
@@ -448,7 +560,7 @@ class CardGeneratorGUI:
             preview=True,
         )
 
-        image.thumbnail((400, 550))
+        image.thumbnail((550, 700))
 
         self.preview_photo = ImageTk.PhotoImage(image)
         self.preview_label.configure(image=self.preview_photo)
@@ -458,6 +570,7 @@ class CardGeneratorGUI:
     # =====================================================
 
     def start_generation(self):
+        self.status.set("Generating cards...")
         threading.Thread(target=self.generate_cards, daemon=True).start()
 
     def generate_cards(self):
@@ -566,7 +679,19 @@ class CardGeneratorGUI:
 
             self.log(f"Generated Card_{i:03}.png")
 
-        self.root.after(0, lambda: messagebox.showinfo("Done", "Generation complete"))
+            self.root.after(
+                0,
+                lambda i=i: self.status.set(f"Generating Card_{i:03}.png")
+            )
+
+        
+        self.root.after(
+            0,
+            lambda: (
+                self.status.set("Generation complete"),
+                messagebox.showinfo("Done", "Generation complete")
+            )
+        )
 
     # =====================================================
     # LOGGING
