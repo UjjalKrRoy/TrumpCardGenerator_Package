@@ -80,7 +80,16 @@ class CardGeneratorGUI:
         return container, scroll_frame
     def __init__(self, root):
         self.root = root
-        self.root.title("Card Generator Pro")
+
+        base_dir = Path(__file__).resolve().parent.parent
+
+        self.root.title("Trump Card Generator")
+
+        icon_path = base_dir / "icon.ico"
+        if icon_path.exists():
+            self.root.iconbitmap(icon_path)
+
+        self.config_obj = load_config(base_dir / "config.json")
         
         screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
@@ -98,10 +107,13 @@ class CardGeneratorGUI:
         self.root.columnconfigure(0, weight=1)
 
         base_dir = Path(__file__).resolve().parent.parent
-        self.config_obj = load_config(base_dir / "config.json")
+        self.config_path = base_dir / "config.json"
+        self.config_obj = load_config(self.config_path)
 
         # ---------------- FILES ----------------
-        self.template_path = None
+        self.green_template_path = None
+        self.red_template_path = None
+
         self.excel_path = None
         self.output_dir = None
 
@@ -123,11 +135,19 @@ class CardGeneratorGUI:
         self.a_max = tk.IntVar(value=a.get("font_max", 28))
         self.a_min = tk.IntVar(value=a.get("font_min", 20))
 
-        self.q_fill = q.get("fill", "#FFFFFF")
-        self.a_fill = a.get("fill", "#FFFFFF")
+        # Green Card Colors
+        self.green_q_fill = "#FFFFFF"
+        self.green_a_fill = "#FFFFFF"
 
-        self.q_outline = q.get("stroke_fill", "#000000")
-        self.a_outline = a.get("stroke_fill", "#000000")
+        self.green_q_outline = "#000000"
+        self.green_a_outline = "#000000"
+
+        # Red Card Colors
+        self.red_q_fill = "#FFFF00"
+        self.red_a_fill = "#FFFF00"
+
+        self.red_q_outline = "#000000"
+        self.red_a_outline = "#000000"
 
         self.q_offset = tk.IntVar(value=0)
         self.a_offset = tk.IntVar(value=0)
@@ -277,7 +297,6 @@ class CardGeneratorGUI:
         self.build_style_section()
         self.build_layout_section()
         self.build_color_section()
-        self.build_outline_section()
         self.build_actions_section()
 
         # =====================================================
@@ -299,10 +318,40 @@ class CardGeneratorGUI:
 
         preview_frame.rowconfigure(0, weight=1)
         preview_frame.columnconfigure(0, weight=1)
+        preview_frame.columnconfigure(1, weight=1)
 
-        self.preview_label = ttk.Label(preview_frame)
-                
-        self.preview_label.pack(fill="both", expand=True, padx=10, pady=10)
+        green_frame = ttk.LabelFrame(
+            preview_frame,
+            text="Green Card"
+        )
+        green_frame.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+            padx=5,
+            pady=5
+        )
+
+        red_frame = ttk.LabelFrame(
+            preview_frame,
+            text="Red Card"
+        )
+        red_frame.grid(
+            row=0,
+            column=1,
+            sticky="nsew",
+            padx=5,
+            pady=5
+        )
+
+        self.green_preview = ttk.Label(green_frame)
+        self.green_preview.pack(fill="both", expand=True)
+
+        self.red_preview = ttk.Label(red_frame)
+        self.red_preview.pack(fill="both", expand=True)
+
+        self.green_photo = None
+        self.red_photo = None
 
         log_frame = ttk.LabelFrame(
             self.right_panel,
@@ -360,9 +409,18 @@ class CardGeneratorGUI:
             "Project"
         )
 
-        ttk.Button(f, text="Select Template", command=self.select_template).pack(fill="x")
+        ttk.Button(f, text="Select Green Card", command=self.select_green_template).pack(fill="x")
+        self.green_template_label = ttk.Label(f, text="Not Selected", foreground="gray", wraplength=300)
+        self.green_template_label.pack(anchor="w", pady=(0,5))
+        ttk.Button(f, text="Select Red Card", command=self.select_red_template).pack(fill="x")
+        self.red_template_label = ttk.Label(f, text="Not Selected", foreground="gray", wraplength=300)
+        self.red_template_label.pack(anchor="w", pady=(0,5))
         ttk.Button(f, text="Select Excel File", command=self.select_excel).pack(fill="x", pady=2)
+        self.excel_label = ttk.Label(f, text="Not Selected", foreground="gray", wraplength=300)
+        self.excel_label.pack(anchor="w", pady=(0,5))
         ttk.Button(f, text="Select Output Folder", command=self.select_output).pack(fill="x")
+        self.output_label = ttk.Label(f, text="Not Selected", foreground="gray", wraplength=300)
+        self.output_label.pack(anchor="w", pady=(0,5))
 
         ttk.Separator(f, orient="horizontal").pack(fill="x", pady=8)
 
@@ -595,23 +653,35 @@ class CardGeneratorGUI:
 
     # ---------------- COLORS ----------------
     def build_color_section(self):
-        f = self.section(
-            self.color_tab,
-            "Colors"
-        )
 
-        ttk.Button(f, text="Question Color", command=self.pick_q_color).pack(fill="x")
-        ttk.Button(f, text="Answer Color", command=self.pick_a_color).pack(fill="x")
+        green = self.section(self.color_tab, "Green Card")
 
-    # ---------------- OUTLINE ----------------
-    def build_outline_section(self):
-        f = self.section(
-            self.color_tab,
-            "Outline"
-        )
+        ttk.Button(green, text="Question Color",
+                command=self.pick_green_q_fill).pack(fill="x")
 
-        ttk.Button(f, text="Question Outline", command=self.pick_q_outline).pack(fill="x")
-        ttk.Button(f, text="Answer Outline", command=self.pick_a_outline).pack(fill="x")
+        ttk.Button(green, text="Answer Color",
+                command=self.pick_green_a_fill).pack(fill="x")
+
+        ttk.Button(green, text="Question Outline",
+                command=self.pick_green_q_outline).pack(fill="x")
+
+        ttk.Button(green, text="Answer Outline",
+                command=self.pick_green_a_outline).pack(fill="x")
+
+
+        red = self.section(self.color_tab, "Red Card")
+
+        ttk.Button(red, text="Question Color",
+                command=self.pick_red_q_fill).pack(fill="x")
+
+        ttk.Button(red, text="Answer Color",
+                command=self.pick_red_a_fill).pack(fill="x")
+
+        ttk.Button(red, text="Question Outline",
+                command=self.pick_red_q_outline).pack(fill="x")
+
+        ttk.Button(red, text="Answer Outline",
+                command=self.pick_red_a_outline).pack(fill="x")
 
     # ---------------- ACTIONS ----------------
     def build_actions_section(self):
@@ -620,60 +690,152 @@ class CardGeneratorGUI:
             "Actions"
         )
 
-        ttk.Button(f, text="Preview", command=self.update_preview).pack(fill="x")
-        ttk.Button(f, text="Generate Cards", command=self.start_generation).pack(fill="x", pady=5)
+        ttk.Button(
+            f,
+            text="Preview",
+            command=self.update_preview
+        ).pack(fill="x")
+
+        ttk.Button(
+            f,
+            text="Reset Settings",
+            command=self.reset_settings
+        ).pack(fill="x", pady=5)
+
+        ttk.Button(
+            f,
+            text="Generate Cards",
+            command=self.start_generation
+        ).pack(fill="x")
 
     # =====================================================
     # FILE PICKERS
     # =====================================================
 
-    def select_template(self):
-        f = filedialog.askopenfilename(filetypes=[("Images", "*.png *.jpg *.jpeg")])
+    def select_green_template(self):
+        f = filedialog.askopenfilename(
+            filetypes=[("Images", "*.png *.jpg *.jpeg")]
+        )
+
         if f:
-            self.template_path = Path(f)
-            self.status.set(f"Template: {self.template_path.name}")
+            self.green_template_path = Path(f)
+
+            self.green_template_label.config(
+                text=self.green_template_path.name,
+                foreground="green"
+            )
+
+            self.status.set(
+                f"Green Template: {self.green_template_path.name}"
+            )
+
+            self.update_preview()
+    
+    def select_red_template(self):
+        f = filedialog.askopenfilename(
+            filetypes=[("Images", "*.png *.jpg *.jpeg")]
+        )
+
+        if f:
+            self.red_template_path = Path(f)
+
+            self.red_template_label.config(
+                text=self.red_template_path.name,
+                foreground="green"
+            )
+
+            self.status.set(
+                f"Red Template: {self.red_template_path.name}"
+            )
+
             self.update_preview()
 
     def select_excel(self):
-        f = filedialog.askopenfilename(filetypes=[("Excel", "*.xlsx")])
+        f = filedialog.askopenfilename(
+            filetypes=[("Excel", "*.xlsx")]
+        )
+
         if f:
             self.excel_path = Path(f)
-            self.status.set(f"Excel: {self.excel_path.name}")
+
+            self.excel_label.config(
+                text=self.excel_path.name,
+                foreground="green"
+            )
+
+            self.status.set(
+                f"Excel: {self.excel_path.name}"
+            )
+
             self.update_preview()
 
     def select_output(self):
         f = filedialog.askdirectory()
+
         if f:
             self.output_dir = Path(f)
-            self.status.set(f"Output: {self.output_dir}")
+
+            self.output_label.config(
+                text=str(self.output_dir),
+                foreground="green"
+            )
+
+            self.status.set(
+                f"Output: {self.output_dir}"
+            )
+
             self.update_preview()
 
     # =====================================================
     # COLORS
     # =====================================================
-
-    def pick_q_color(self):
+    
+    def pick_green_q_fill(self):
         c = colorchooser.askcolor()[1]
         if c:
-            self.q_fill = c
+            self.green_q_fill = c
             self.update_preview()
 
-    def pick_a_color(self):
+    def pick_green_a_fill(self):
         c = colorchooser.askcolor()[1]
         if c:
-            self.a_fill = c
+            self.green_a_fill = c
             self.update_preview()
 
-    def pick_q_outline(self):
+    def pick_green_q_outline(self):
         c = colorchooser.askcolor()[1]
         if c:
-            self.q_outline = c
+            self.green_q_outline = c
             self.update_preview()
 
-    def pick_a_outline(self):
+    def pick_green_a_outline(self):
         c = colorchooser.askcolor()[1]
         if c:
-            self.a_outline = c
+            self.green_a_outline = c
+            self.update_preview()
+
+    def pick_red_q_fill(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.red_q_fill = c
+            self.update_preview()
+
+    def pick_red_a_fill(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.red_a_fill = c
+            self.update_preview()
+
+    def pick_red_q_outline(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.red_q_outline = c
+            self.update_preview()
+
+    def pick_red_a_outline(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.red_a_outline = c
             self.update_preview()
 
     # =====================================================
@@ -681,8 +843,6 @@ class CardGeneratorGUI:
     # =====================================================
 
     def update_preview(self):
-        if not self.template_path:
-            return
 
         config = deepcopy(self.config_obj)
 
@@ -707,12 +867,6 @@ class CardGeneratorGUI:
         config.style["answer"]["font_max"] = self.a_max.get()
         config.style["answer"]["font_min"] = self.a_min.get()
 
-        config.style["question"]["fill"] = self.q_fill
-        config.style["answer"]["fill"] = self.a_fill
-
-        config.style["question"]["stroke_fill"] = self.q_outline
-        config.style["answer"]["stroke_fill"] = self.a_outline
-
         # Question margins
         config.style["question"]["margin_left"] = self.q_margin_left.get()
         config.style["question"]["margin_right"] = self.q_margin_right.get()
@@ -725,26 +879,159 @@ class CardGeneratorGUI:
         config.style["answer"]["margin_top"] = self.a_margin_top.get()
         config.style["answer"]["margin_bottom"] = self.a_margin_bottom.get()
 
-        image = create_card(
-            "Sample Question",
-            "Sample Answer",
-            None,
-            config,
-            self.template_path,
-            self.font_map.get(self.font_var.get(), "Arial"),
-            preview=True,
-        )
+        self.green_preview.update_idletasks()
 
-        
-        self.preview_label.update_idletasks()
+        w = max(self.green_preview.winfo_width() - 20, 300)
+        h = max(self.green_preview.winfo_height() - 20, 400)
 
-        w = max(self.preview_label.winfo_width() - 20, 300)
-        h = max(self.preview_label.winfo_height() - 20, 400)
+        # ---------------- GREEN PREVIEW ----------------
+        if self.green_template_path:
 
-        image.thumbnail((w, h))
+            green_cfg = deepcopy(config)
 
-        self.preview_photo = ImageTk.PhotoImage(image)
-        self.preview_label.configure(image=self.preview_photo)
+            green_cfg.style["question"]["fill"] = self.green_q_fill
+            green_cfg.style["answer"]["fill"] = self.green_a_fill
+            green_cfg.style["question"]["stroke_fill"] = self.green_q_outline
+            green_cfg.style["answer"]["stroke_fill"] = self.green_a_outline
+
+            green = create_card(
+                "Sample Question",
+                "Sample Answer",
+                None,
+                green_cfg,
+                self.green_template_path,
+                self.font_map.get(self.font_var.get(), "Arial"),
+                preview=True,
+            )
+
+            green.thumbnail((w, h))
+
+            self.green_photo = ImageTk.PhotoImage(green)
+            self.green_preview.configure(image=self.green_photo)
+
+        else:
+            self.green_preview.configure(image="")
+            self.green_photo = None
+
+
+        # ---------------- RED PREVIEW ----------------
+        if self.red_template_path:
+
+            red_cfg = deepcopy(config)
+
+            red_cfg.style["question"]["fill"] = self.red_q_fill
+            red_cfg.style["answer"]["fill"] = self.red_a_fill
+            red_cfg.style["question"]["stroke_fill"] = self.red_q_outline
+            red_cfg.style["answer"]["stroke_fill"] = self.red_a_outline
+
+            red = create_card(
+                "Sample Question",
+                "Sample Answer",
+                None,
+                red_cfg,
+                self.red_template_path,
+                self.font_map.get(self.font_var.get(), "Arial"),
+                preview=True,
+            )
+
+            red.thumbnail((w, h))
+
+            self.red_photo = ImageTk.PhotoImage(red)
+            self.red_preview.configure(image=self.red_photo)
+
+        else:
+            self.red_preview.configure(image="")
+            self.red_photo = None
+
+    def reset_settings(self):
+        """
+        Reload all settings from config.json.
+        """
+
+        # Reload config
+        self.config_obj = load_config(self.config_path)
+        self.base_boxes = deepcopy(self.config_obj.boxes)
+
+        q = self.config_obj.get_style("question")
+        a = self.config_obj.get_style("answer")
+
+        # Font
+        self.font_var.set(self.config_obj.get_font_family())
+
+        self.q_max.set(q.get("font_max", 32))
+        self.q_min.set(q.get("font_min", 18))
+        self.a_max.set(a.get("font_max", 28))
+        self.a_min.set(a.get("font_min", 20))
+
+        # Offsets
+        self.q_offset.set(0)
+        self.a_offset.set(0)
+
+        # Question Box
+        self.q_left.set(0)
+        self.q_right.set(0)
+        self.q_top.set(0)
+        self.q_bottom.set(0)
+
+        # Answer Box
+        self.a_left.set(0)
+        self.a_right.set(0)
+        self.a_top.set(0)
+        self.a_bottom.set(0)
+
+        # Margins
+        self.q_margin_left.set(q.get("margin_left", 20))
+        self.q_margin_right.set(q.get("margin_right", 20))
+        self.q_margin_top.set(q.get("margin_top", 10))
+        self.q_margin_bottom.set(q.get("margin_bottom", 10))
+
+        self.a_margin_left.set(a.get("margin_left", 20))
+        self.a_margin_right.set(a.get("margin_right", 20))
+        self.a_margin_top.set(a.get("margin_top", 10))
+        self.a_margin_bottom.set(a.get("margin_bottom", 10))
+
+        # Colors
+        self.green_q_fill = "#FFFFFF"
+        self.green_a_fill = "#FFFFFF"
+        self.green_q_outline = "#000000"
+        self.green_a_outline = "#000000"
+
+        self.red_q_fill = "#FFFF00"
+        self.red_a_fill = "#FFFF00"
+        self.red_q_outline = "#000000"
+        self.red_a_outline = "#000000"
+
+        # ---------------- Clear Project Selection ----------------
+        self.green_template_path = None
+        self.red_template_path = None
+
+        self.excel_path = None
+        self.output_dir = None
+
+        self.start_row.set(2)
+        self.end_row.set(0)
+
+        # Clear previews
+        self.green_preview.configure(image="")
+        self.red_preview.configure(image="")
+
+        self.green_photo = None
+        self.red_photo = None
+
+        # Clear log
+        self.log_box.delete("1.0", tk.END)
+
+        # Reset status
+        self.status.set("Ready")
+
+        self.update_preview()
+
+        self.status.set("Settings reset.")
+
+        self.green_template_label.config(text="Not Selected", foreground="gray")
+        self.red_template_label.config(text="Not Selected", foreground="gray")
+        self.excel_label.config(text="Not Selected", foreground="gray")
+        self.output_label.config(text="Not Selected", foreground="gray")
 
     # =====================================================
     # GENERATION
@@ -755,12 +1042,41 @@ class CardGeneratorGUI:
         threading.Thread(target=self.generate_cards, daemon=True).start()
 
     def generate_cards(self):
-        if not all([self.template_path, self.excel_path, self.output_dir]):
-            self.root.after(0, lambda: messagebox.showerror("Error", "Missing inputs"))
+        # Excel and output are always required
+        if not self.excel_path or not self.output_dir:
+            self.root.after(
+                0,
+                lambda: messagebox.showerror(
+                    "Error",
+                    "Please select an Excel file and an Output folder."
+                )
+            )
+            return
+
+        # At least one template is required
+        if not self.green_template_path and not self.red_template_path:
+            self.root.after(
+                0,
+                lambda: messagebox.showerror(
+                    "Error",
+                    "Please select at least one card template."
+                )
+            )
             return
 
         wb = load_workbook(self.excel_path)
         ws = wb.active
+
+        if ws.max_column < 3:
+            self.root.after(
+                0,
+                lambda: messagebox.showerror(
+                    "Invalid Excel",
+                    "The Excel sheet must contain three columns:\n\n"
+                    "Question | Answer | Points"
+                )
+            )
+            return
 
         config = deepcopy(self.config_obj)
 
@@ -787,13 +1103,6 @@ class CardGeneratorGUI:
 
         config.style["answer"]["font_max"] = self.a_max.get()
         config.style["answer"]["font_min"] = self.a_min.get()
-
-        # Colors
-        config.style["question"]["fill"] = self.q_fill
-        config.style["answer"]["fill"] = self.a_fill
-
-        config.style["question"]["stroke_fill"] = self.q_outline
-        config.style["answer"]["stroke_fill"] = self.a_outline
 
         # Margins
         config.style["question"]["margin_left"] = self.q_margin_left.get()
@@ -836,7 +1145,9 @@ class CardGeneratorGUI:
 
         if end > ws.max_row:
             end = ws.max_row
-
+        
+        card_no = 1
+        
         for i, row in enumerate(
             ws.iter_rows(
                 min_row=start,
@@ -846,23 +1157,77 @@ class CardGeneratorGUI:
             start
         ):
 
-            if not row or not row[0] or not row[1]:
+            if not row:
                 continue
+
+            # Need at least Question and Answer
+            if len(row) < 2:
+                self.log(f"Skipped Row {i} (Not enough columns)")
+                continue
+
+            if not row[0] or not row[1]:
+                continue
+
+            # Read Points safely
+            try:
+                points = int(row[2]) if len(row) >= 3 and row[2] is not None else 0
+            except (TypeError, ValueError):
+                points = 0
+
+            if points == 10:
+
+                if not self.green_template_path:
+                    self.log(f"Skipped Row {i} (Green template not selected)")
+                    continue
+
+                cfg = deepcopy(config)
+
+                cfg.style["question"]["fill"] = self.green_q_fill
+                cfg.style["answer"]["fill"] = self.green_a_fill
+                cfg.style["question"]["stroke_fill"] = self.green_q_outline
+                cfg.style["answer"]["stroke_fill"] = self.green_a_outline
+
+                template = self.green_template_path
+
+
+            elif points == 20:
+
+                if not self.red_template_path:
+                    self.log(f"Skipped Row {i} (Red template not selected)")
+                    continue
+
+                cfg = deepcopy(config)
+
+                cfg.style["question"]["fill"] = self.red_q_fill
+                cfg.style["answer"]["fill"] = self.red_a_fill
+                cfg.style["question"]["stroke_fill"] = self.red_q_outline
+                cfg.style["answer"]["stroke_fill"] = self.red_a_outline
+
+                template = self.red_template_path
+
+
+            else:
+
+                self.log(f"Skipped Row {i} (Invalid Points = {points})")
+                continue
+
 
             create_card(
                 str(row[0]),
                 str(row[1]),
-                self.output_dir / f"Card_{i:03}.png",
-                config,
-                self.template_path,
+                self.output_dir / f"Card_{card_no:03}.png",
+                cfg,
+                template,
                 self.font_map.get(self.font_var.get(), "Arial"),
             )
 
-            self.log(f"Generated Card_{i:03}.png")
+            card_no += 1
+
+            self.log(f"Generated Card_{card_no-1:03}.png")
 
             self.root.after(
                 0,
-                lambda i=i: self.status.set(f"Generating Card_{i:03}.png")
+                lambda i=i: self.status.set(f"Generating Card_{card_no-1:03}.png")
             )
 
         
