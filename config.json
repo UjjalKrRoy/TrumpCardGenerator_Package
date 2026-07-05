@@ -1,39 +1,62 @@
 {
-  "boxes": {
-    "question": [70, 150, 460, 180],
-    "answer": [120, 350, 360, 100]
-  },
+    "boxes": {
+        "question": [70, 150, 460, 180],
+        "answer": [120, 350, 360, 100],
 
-  "style": {
-    "question": {
-      "font_max": 32,
-      "font_min": 18,
-      "fill": "#FFFFFF",
-      "stroke_fill": "#000000",
-      "stroke_width": 2,
-
-      "margin_left": 20,
-      "margin_right": 20,
-      "margin_top": 10,
-      "margin_bottom": 10
+        "subject": [60, 35, 480, 60],
+        "stage": [60, 90, 480, 50]
     },
 
-    "answer": {
-      "font_max": 28,
-      "font_min": 20,
-      "fill": "#FFFFFF",
-      "stroke_fill": "#000000",
-      "stroke_width": 2,
+    "style": {
+        "question": {
+            "font_max": 32,
+            "font_min": 18,
+            "fill": "#FFFFFF",
+            "stroke_fill": "#000000",
+            "stroke_width": 2,
 
-      "margin_left": 20,
-      "margin_right": 20,
-      "margin_top": 10,
-      "margin_bottom": 10
+            "margin_left": 20,
+            "margin_right": 20,
+            "margin_top": 10,
+            "margin_bottom": 10
+        },
+
+        "answer": {
+            "font_max": 28,
+            "font_min": 20,
+            "fill": "#FFFFFF",
+            "stroke_fill": "#000000",
+            "stroke_width": 2,
+
+            "margin_left": 20,
+            "margin_right": 20,
+            "margin_top": 10,
+            "margin_bottom": 10
+        },
+
+        "subject": {
+            "font_size": 36,
+            "fill": "#39FF14",
+            "stroke_fill": "#000000",
+            "stroke_width": 2,
+            "align": "center",
+            "bold": true,
+            "italic": false
+        },
+
+        "stage": {
+            "font_size": 32,
+            "fill": "#39FF14",
+            "stroke_fill": "#000000",
+            "stroke_width": 2,
+            "align": "center",
+            "bold": true,
+            "italic": false
+        }
+    },
+
+    "output": {
+        "format": "PNG",
+        "quality": 100
     }
-  },
-
-  "output": {
-    "format": "PNG",
-    "quality": 100
-  }
 }

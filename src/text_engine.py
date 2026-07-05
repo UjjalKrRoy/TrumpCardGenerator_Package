@@ -1,131 +1,232 @@
 from PIL import ImageFont
-
+from src.font_manager import get_font
+from pathlib import Path
 
 # =========================================================
-# TEXT WRAPPING ENGINE
+# FONT FACTORY
 # =========================================================
-def wrap_text(draw, text, font, max_width):
-    """
-    Splits text into multiple lines so each line fits within max_width.
-    """
+def load_font(font_path, size, bold=False, italic=False):
+
+    actual_font = get_font(
+        font_path,
+        bold=bold,
+        italic=italic,
+    )
+
+    return ImageFont.truetype(
+        actual_font,
+        size,
+    )
+# =========================================================
+# TEXT WRAPPING
+# =========================================================
+
+def wrap_text(
+    draw,
+    text,
+    font,
+    max_width,
+):
 
     if not text:
         return [""]
 
     words = str(text).split()
+
     lines = []
-    current_line = ""
+
+    current = ""
 
     for word in words:
-        test_line = word if not current_line else f"{current_line} {word}"
 
-        bbox = draw.textbbox((0, 0), test_line, font=font)
-        line_width = bbox[2] - bbox[0]
+        test = word if current == "" else current + " " + word
 
-        if line_width <= max_width:
-            current_line = test_line
+        bbox = draw.textbbox(
+            (0, 0),
+            test,
+            font=font,
+        )
+
+        width = bbox[2] - bbox[0]
+
+        if width <= max_width:
+
+            current = test
+
         else:
-            if current_line:
-                lines.append(current_line)
-            current_line = word
 
-    if current_line:
-        lines.append(current_line)
+            if current:
+
+                lines.append(current)
+
+            current = word
+
+    if current:
+
+        lines.append(current)
 
     return lines if lines else [""]
 
 
 # =========================================================
-# AUTO-FIT TEXT BOX RENDERER
+# AUTO FIT TEXT BOX
 # =========================================================
+
 def draw_text_box(
+
     draw,
+
     text,
+
     box,
+
     font_path,
+
     max_font_size=32,
-    min_font_size=16,
+
+    min_font_size=18,
+
     fill="#FFFFFF",
+
     stroke_fill="#000000",
+
     stroke_width=2,
+
     align="center",
+
     line_spacing=6,
+
+    margin_left=0,
+
+    margin_right=0,
+
+    margin_top=0,
+
+    margin_bottom=0,
+
+    bold=False,
+
+    italic=False,
 ):
     """
-    Draws text inside a bounding box with automatic font fitting.
+    Draws multiline text inside a box.
 
-    Features:
-    - auto font scaling
-    - word wrapping
-    - vertical centering
-    - optional stroke
+    Features
+
+    • Auto font scaling
+    • Word wrap
+    • Margins
+    • Bold
+    • Italic
+    • Stroke
     """
 
     x, y, w, h = box
+
+    x += margin_left
+    y += margin_top
+
+    w -= (margin_left + margin_right)
+    h -= (margin_top + margin_bottom)
+
+    if w < 10:
+        w = 10
+
+    if h < 10:
+        h = 10
 
     text = "" if text is None else str(text)
 
     best_font = None
     best_lines = [""]
 
-    # =====================================================
-    # FIND BEST FIT FONT SIZE (largest that fits)
-    # =====================================================
+    # ------------------------------------------
+    # Largest font that fits
+    # ------------------------------------------
+
     for size in range(max_font_size, min_font_size - 1, -1):
 
-        font = ImageFont.truetype(font_path, size)
+        font = load_font(
+            font_path,
+            size,
+            bold,
+            italic,
+        )
 
-        lines = wrap_text(draw, text, font, w)
+        lines = wrap_text(
+            draw,
+            text,
+            font,
+            w,
+        )
 
         line_height = font.getbbox("Ay")[3] + line_spacing
+
         total_height = len(lines) * line_height
 
         if total_height <= h:
+
             best_font = font
             best_lines = lines
             break
 
-    # fallback if nothing fits
     if best_font is None:
-        best_font = ImageFont.truetype(font_path, min_font_size)
-        best_lines = wrap_text(draw, text, best_font, w)
+
+        best_font = load_font(
+            font_path,
+            min_font_size,
+            bold,
+            italic,
+        )
+
+        best_lines = wrap_text(
+            draw,
+            text,
+            best_font,
+            w,
+        )
 
     font = best_font
-    lines = best_lines
 
-    # =====================================================
-    # CALCULATE VERTICAL CENTERING
-    # =====================================================
     line_height = font.getbbox("Ay")[3] + line_spacing
-    total_height = len(lines) * line_height
+
+    total_height = len(best_lines) * line_height
 
     current_y = y + (h - total_height) // 2
 
-    # =====================================================
-    # DRAW EACH LINE
-    # =====================================================
-    for line in lines:
+    for line in best_lines:
 
-        bbox = draw.textbbox((0, 0), line, font=font)
-        line_width = bbox[2] - bbox[0]
+        bbox = draw.textbbox(
+            (0, 0),
+            line,
+            font=font,
+        )
 
-        # alignment logic
+        width = bbox[2] - bbox[0]
+
         if align == "left":
-            current_x = x
-        elif align == "right":
-            current_x = x + w - line_width
-        else:
-            current_x = x + (w - line_width) // 2
 
-        # draw text (with or without stroke)
-        if stroke_fill is None or stroke_width <= 0:
+            current_x = x
+
+        elif align == "right":
+
+            current_x = x + w - width
+
+        else:
+
+            current_x = x + (w - width) // 2
+
+        if stroke_width <= 0 or stroke_fill is None:
+
             draw.text(
                 (current_x, current_y),
                 line,
                 font=font,
                 fill=fill,
             )
+
         else:
+
             draw.text(
                 (current_x, current_y),
                 line,
@@ -136,5 +237,92 @@ def draw_text_box(
             )
 
         current_y += line_height
+
+    return font
+
+
+# =========================================================
+# FIXED SIZE TEXT
+# =========================================================
+
+def draw_single_text(
+
+    draw,
+
+    text,
+
+    box,
+
+    font_path,
+
+    font_size,
+
+    fill="#FFFFFF",
+
+    stroke_fill="#000000",
+
+    stroke_width=2,
+
+    align="center",
+
+    bold=False,
+
+    italic=False,
+):
+    """
+    Used for Subject and Stage.
+
+    Does NOT auto-scale.
+
+    Always uses the chosen font size.
+    """
+
+    x, y, w, h = box
+
+    font = load_font(
+        font_path,
+        font_size,
+        bold,
+        italic,
+    )
+
+    bbox = draw.textbbox(
+        (0, 0),
+        str(text),
+        font=font,
+    )
+
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+
+    if align == "left":
+
+        tx = x
+
+    elif align == "right":
+
+        tx = x + w - text_w
+
+    else:
+
+        tx = x + (w - text_w) // 2
+
+    ty = y + (h - text_h) // 2
+
+    draw.text(
+
+        (tx, ty),
+
+        str(text),
+
+        font=font,
+
+        fill=fill,
+
+        stroke_width=stroke_width,
+
+        stroke_fill=stroke_fill,
+
+    )
 
     return font

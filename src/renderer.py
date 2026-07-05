@@ -1,7 +1,10 @@
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-from src.text_engine import draw_text_box
+from src.text_engine import (
+    draw_text_box,
+    draw_single_text,
+)
 
 
 # =========================================================
@@ -39,6 +42,10 @@ def create_card(
     template_path,
     font_path,
     preview=False,
+    subject="",
+    stage="",
+    subject_font_path=None,
+    stage_font_path=None,
 ):
     """
     Renders a flashcard image.
@@ -70,14 +77,25 @@ def create_card(
     # -----------------------------------------------------
     font_path = resolve_font(font_path)
 
+    qa_font = font_path
+
+    subject_font = resolve_font(subject_font_path) if subject_font_path else qa_font
+    stage_font = resolve_font(stage_font_path) if stage_font_path else subject_font
+
     # -----------------------------------------------------
     # CONFIG
     # -----------------------------------------------------
     q_style = config.get_style("question")
     a_style = config.get_style("answer")
 
+    s_style = config.get_style("subject")
+    st_style = config.get_style("stage")
+
     q_box = list(config.get_box("question"))
     a_box = list(config.get_box("answer"))
+
+    subject_box = list(config.get_box("subject"))
+    stage_box = list(config.get_box("stage"))
 
     # Apply Question Margins
     q_box[0] += q_style.get("margin_left", 0)
@@ -124,6 +142,8 @@ def create_card(
         stroke_fill=q_style.get("stroke_fill"),
         stroke_width=q_style.get("stroke_width", 2),
         align="center",
+        bold=q_style.get("bold", False),
+        italic=q_style.get("italic", False),
     )
 
     # =====================================================
@@ -140,6 +160,44 @@ def create_card(
         stroke_fill=a_style.get("stroke_fill"),
         stroke_width=a_style.get("stroke_width", 2),
         align="center",
+        bold=a_style.get("bold", False),
+        italic=a_style.get("italic", False),
+    )
+
+    # =====================================================
+    # SUBJECT
+    # =====================================================
+
+    draw_single_text(
+        draw=draw,
+        text=subject,
+        box=subject_box,
+        font_path=subject_font,
+        font_size=s_style.get("font_size",24),
+        fill=s_style.get("fill","#FFFFFF"),
+        stroke_fill=s_style.get("stroke_fill","#000000"),
+        stroke_width=s_style.get("stroke_width",2),
+        align=s_style.get("align", "center"),
+        bold=s_style.get("bold",False),
+        italic=s_style.get("italic",False),
+    )
+
+    # =====================================================
+    # STAGE
+    # =====================================================
+
+    draw_single_text(
+        draw=draw,
+        text=stage,
+        box=stage_box,
+        font_path=stage_font,
+        font_size=st_style.get("font_size",24),
+        fill=st_style.get("fill","#FFFFFF"),
+        stroke_fill=st_style.get("stroke_fill","#000000"),
+        stroke_width=st_style.get("stroke_width",2),
+        align="center",
+        bold=st_style.get("bold",False),
+        italic=st_style.get("italic",False),
     )
 
     # =====================================================
@@ -147,7 +205,7 @@ def create_card(
     # =====================================================
     if preview:
         return image
-
+    
     # =====================================================
     # EXPORT MODE
     # =====================================================

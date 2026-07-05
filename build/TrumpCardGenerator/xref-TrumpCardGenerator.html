@@ -109,11 +109,7 @@ imported by:
   <a target="code" href="///D:/TrumpCardGenerator/run.py" type="text/plain"><tt>run.py</tt></a>
 <span class="moduletype">Script</span>  <div class="import">
 imports:
-    <a href="#PIL.Image">PIL.Image</a>
- &#8226;   <a href="#PIL.ImageDraw">PIL.ImageDraw</a>
- &#8226;   <a href="#PIL.ImageFont">PIL.ImageFont</a>
- &#8226;   <a href="#PIL.ImageTk">PIL.ImageTk</a>
- &#8226;   <a href="#_collections_abc">_collections_abc</a>
+    <a href="#_collections_abc">_collections_abc</a>
  &#8226;   <a href="#_weakrefset">_weakrefset</a>
  &#8226;   <a href="#abc">abc</a>
  &#8226;   <a href="#codecs">codecs</a>
@@ -429,8 +425,10 @@ imports:
  &#8226;   <a href="#re._parser">re._parser</a>
  &#8226;   <a href="#reprlib">reprlib</a>
  &#8226;   <a href="#src.config">src.config</a>
+ &#8226;   <a href="#src.font_manager">src.font_manager</a>
  &#8226;   <a href="#src.gui">src.gui</a>
  &#8226;   <a href="#src.renderer">src.renderer</a>
+ &#8226;   <a href="#src.text_engine">src.text_engine</a>
  &#8226;   <a href="#sre_compile">sre_compile</a>
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
@@ -1542,7 +1540,6 @@ imported by:
  &#8226;   <a href="#matplotlib.pyplot">matplotlib.pyplot</a>
  &#8226;   <a href="#matplotlib.testing.compare">matplotlib.testing.compare</a>
  &#8226;   <a href="#openpyxl.drawing.image">openpyxl.drawing.image</a>
- &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#src.renderer">src.renderer</a>
 
   </div>
@@ -1648,7 +1645,6 @@ imports:
 imported by:
     <a href="#PIL">PIL</a>
  &#8226;   <a href="#PIL.ImageDraw2">PIL.ImageDraw2</a>
- &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#src.renderer">src.renderer</a>
 
   </div>
@@ -1814,7 +1810,6 @@ imported by:
  &#8226;   <a href="#PIL.ImageDraw2">PIL.ImageDraw2</a>
  &#8226;   <a href="#PIL.ImageText">PIL.ImageText</a>
  &#8226;   <a href="#PIL._imagingft">PIL._imagingft</a>
- &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#src.renderer">src.renderer</a>
  &#8226;   <a href="#src.text_engine">src.text_engine</a>
 
@@ -2073,7 +2068,6 @@ imported by:
     <a href="#PIL">PIL</a>
  &#8226;   <a href="#PIL.SpiderImagePlugin">PIL.SpiderImagePlugin</a>
  &#8226;   <a href="#matplotlib.backends._backend_tk">matplotlib.backends._backend_tk</a>
- &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#src.gui">src.gui</a>
 
   </div>
@@ -22339,6 +22333,7 @@ imported by:
  &#8226;   <a href="#matplotlib.textpath">matplotlib.textpath</a>
  &#8226;   <a href="#matplotlib.ticker">matplotlib.ticker</a>
  &#8226;   <a href="#run.py">run.py</a>
+ &#8226;   <a href="#src.font_manager">src.font_manager</a>
  &#8226;   <a href="#src.gui">src.gui</a>
 
   </div>
@@ -37351,6 +37346,7 @@ imported by:
  &#8226;   <a href="#src.config">src.config</a>
  &#8226;   <a href="#src.gui">src.gui</a>
  &#8226;   <a href="#src.renderer">src.renderer</a>
+ &#8226;   <a href="#src.text_engine">src.text_engine</a>
  &#8226;   <a href="#zipfile._path">zipfile._path</a>
 
   </div>
@@ -39063,6 +39059,7 @@ imported by:
 <span class="moduletype">NamespacePackage</span>  <div class="import">
 imported by:
     <a href="#src.config">src.config</a>
+ &#8226;   <a href="#src.font_manager">src.font_manager</a>
  &#8226;   <a href="#src.gui">src.gui</a>
  &#8226;   <a href="#src.renderer">src.renderer</a>
  &#8226;   <a href="#src.text_engine">src.text_engine</a>
@@ -39086,6 +39083,24 @@ imports:
 imported by:
     <a href="#run.py">run.py</a>
  &#8226;   <a href="#src.gui">src.gui</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="src.font_manager"></a>
+  <a target="code" href="///D:/TrumpCardGenerator/src/font_manager.py" type="text/plain"><tt>src.font_manager</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#matplotlib.font_manager">matplotlib.font_manager</a>
+ &#8226;   <a href="#src">src</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#run.py">run.py</a>
+ &#8226;   <a href="#src.text_engine">src.text_engine</a>
 
   </div>
 
@@ -39153,12 +39168,15 @@ imported by:
 imports:
     <a href="#PIL">PIL</a>
  &#8226;   <a href="#PIL.ImageFont">PIL.ImageFont</a>
+ &#8226;   <a href="#pathlib">pathlib</a>
  &#8226;   <a href="#src">src</a>
+ &#8226;   <a href="#src.font_manager">src.font_manager</a>
 
   </div>
   <div class="import">
 imported by:
-    <a href="#src.renderer">src.renderer</a>
+    <a href="#run.py">run.py</a>
+ &#8226;   <a href="#src.renderer">src.renderer</a>
 
   </div>
 

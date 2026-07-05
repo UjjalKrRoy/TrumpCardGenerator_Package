@@ -17,10 +17,21 @@ from src.renderer import create_card
 # =========================================================
 def get_system_fonts():
     fonts = {}
-    for f in font_manager.fontManager.ttflist:
-        fonts.setdefault(f.name, f.fname)
-    return fonts
 
+    for f in font_manager.fontManager.ttflist:
+
+        name = f.name
+        filename = Path(f.fname).stem.lower()
+
+        # If this is the regular font (not bold/italic), always use it.
+        if filename.endswith(("bd", "bi", "i")) or "bold" in filename or "italic" in filename:
+            if name not in fonts:
+                fonts[name] = f.fname
+        else:
+            # Regular font replaces any previous variant.
+            fonts[name] = f.fname
+
+    return fonts
 
 # =========================================================
 # MAIN APP
@@ -149,6 +160,20 @@ class CardGeneratorGUI:
         self.red_q_outline = "#000000"
         self.red_a_outline = "#000000"
 
+        # Subject & Stage Colors
+
+        self.green_subject_fill = "#FFFFFF"
+        self.green_subject_outline = "#000000"
+
+        self.green_stage_fill = "#FFFFFF"
+        self.green_stage_outline = "#000000"
+
+        self.red_subject_fill = "#FFFF00"
+        self.red_subject_outline = "#000000"
+
+        self.red_stage_fill = "#FFFF00"
+        self.red_stage_outline = "#000000"
+
         self.q_offset = tk.IntVar(value=0)
         self.a_offset = tk.IntVar(value=0)
 
@@ -177,6 +202,41 @@ class CardGeneratorGUI:
         # Excel row range
         self.start_row = tk.IntVar(value=2)
         self.end_row = tk.IntVar(value=0)   # 0 = last row
+
+        # =====================================================
+        # SUBJECT & STAGE
+        # =====================================================
+
+        # Values entered by the user
+        self.subject_var = tk.StringVar()
+        self.stage_var = tk.StringVar()
+
+        # Fonts
+        self.subject_font_var = tk.StringVar(value="Arial")
+        self.stage_font_var = tk.StringVar(value="Arial")
+
+        # Font sizes
+        self.subject_font_size = tk.IntVar(value=24)
+        self.stage_font_size = tk.IntVar(value=24)
+
+        # Bold
+        self.subject_bold = tk.BooleanVar(value=False)
+        self.stage_bold = tk.BooleanVar(value=False)
+
+        # Italic
+        self.subject_italic = tk.BooleanVar(value=False)
+        self.stage_italic = tk.BooleanVar(value=False)
+
+        # Position Adjustment
+        self.subject_left = tk.IntVar(value=0)
+        self.subject_right = tk.IntVar(value=0)
+        self.subject_up = tk.IntVar(value=0)
+        self.subject_down = tk.IntVar(value=0)
+
+        self.stage_left = tk.IntVar(value=0)
+        self.stage_right = tk.IntVar(value=0)
+        self.stage_up = tk.IntVar(value=0)
+        self.stage_down = tk.IntVar(value=0)
 
         # ==========================
         # Main Frame
@@ -259,8 +319,10 @@ class CardGeneratorGUI:
        
         # Auto-update preview when values change
         for var in (
+
             self.q_max,
             self.q_min,
+
             self.a_max,
             self.a_min,
 
@@ -286,6 +348,32 @@ class CardGeneratorGUI:
             self.a_right,
             self.a_top,
             self.a_bottom,
+
+            self.subject_var,
+            self.stage_var,
+
+            self.subject_font_var,
+            self.stage_font_var,
+
+            self.subject_font_size,
+            self.stage_font_size,
+
+            self.subject_bold,
+            self.subject_italic,
+
+            self.stage_bold,
+            self.stage_italic,
+
+            self.subject_left,
+            self.subject_right,
+            self.subject_up,
+            self.subject_down,
+
+            self.stage_left,
+            self.stage_right,
+            self.stage_up,
+            self.stage_down,
+
         ):
             var.trace_add("write", lambda *args: self.update_preview())
     
@@ -421,7 +509,22 @@ class CardGeneratorGUI:
         ttk.Button(f, text="Select Output Folder", command=self.select_output).pack(fill="x")
         self.output_label = ttk.Label(f, text="Not Selected", foreground="gray", wraplength=300)
         self.output_label.pack(anchor="w", pady=(0,5))
+        ttk.Separator(f, orient="horizontal").pack(fill="x", pady=8)
+        ttk.Separator(f, orient="horizontal").pack(fill="x", pady=8)
 
+        # =====================================================
+        # SUBJECT
+        # =====================================================
+
+        ttk.Label(f, text="Subject").pack(anchor="w")
+        ttk.Entry(f, textvariable=self.subject_var).pack(fill="x")
+
+        # =====================================================
+        # STAGE
+        # =====================================================
+
+        ttk.Label(f, text="Stage").pack(anchor="w", pady=(8,0))
+        ttk.Entry(f, textvariable=self.stage_var).pack(fill="x")
         ttk.Separator(f, orient="horizontal").pack(fill="x", pady=8)
 
         ttk.Label(f, text="Start Row").pack(anchor="w")
@@ -485,6 +588,24 @@ class CardGeneratorGUI:
 
         ttk.Label(f, text="Answer Min").pack(anchor="w")
         ttk.Spinbox(f, from_=8, to=120, textvariable=self.a_min).pack(fill="x")
+
+        ttk.Separator(f, orient="horizontal").pack(fill="x", pady=10)
+        ttk.Label(f, text="Subject",font=("Segoe UI",10,"bold")).pack(anchor="w")
+        ttk.Label(f, text="Font").pack(anchor="w")
+        ttk.Combobox(f, textvariable=self.subject_font_var, values=self.font_names, state="readonly").pack(fill="x")
+        ttk.Label(f, text="Font Size").pack(anchor="w")
+        ttk.Spinbox(f, from_=8, to=120, textvariable=self.subject_font_size).pack(fill="x")
+        ttk.Checkbutton(f, text="Bold", variable=self.subject_bold).pack(anchor="w")
+        ttk.Checkbutton(f, text="Italic", variable=self.subject_italic).pack(anchor="w")
+
+        ttk.Separator(f, orient="horizontal").pack(fill="x", pady=10)
+        ttk.Label(f, text="Stage", font=("Segoe UI",10,"bold")).pack(anchor="w")
+        ttk.Label(f, text="Font").pack(anchor="w")
+        ttk.Combobox(f, textvariable=self.stage_font_var, values=self.font_names, state="readonly").pack(fill="x")
+        ttk.Label(f, text="Font Size").pack(anchor="w")
+        ttk.Spinbox(f, from_=8, to=120, textvariable=self.stage_font_size).pack(fill="x")
+        ttk.Checkbutton(f, text="Bold", variable=self.stage_bold).pack(anchor="w")
+        ttk.Checkbutton(f, text="Italic", variable=self.stage_italic).pack(anchor="w")
 
     # ---------------- LAYOUT ----------------
     def build_layout_section(self):
@@ -649,8 +770,96 @@ class CardGeneratorGUI:
             to=300,
             textvariable=self.a_bottom
         ).pack(fill="x")
-        
 
+        # =====================================================
+        # SUBJECT
+        # =====================================================
+
+        ttk.Separator(f, orient="horizontal").pack(fill="x", pady=10)
+
+        ttk.Label(
+            f,
+            text="Subject",
+            font=("Segoe UI", 10, "bold")
+        ).pack(anchor="w")
+
+        ttk.Label(f, text="Move Left").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.subject_left
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Move Right").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.subject_right
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Move Up").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.subject_up
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Move Down").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.subject_down
+        ).pack(fill="x")
+
+
+        # =====================================================
+        # STAGE
+        # =====================================================
+
+        ttk.Separator(f, orient="horizontal").pack(fill="x", pady=10)
+
+        ttk.Label(
+            f,
+            text="Stage",
+            font=("Segoe UI", 10, "bold")
+        ).pack(anchor="w")
+
+        ttk.Label(f, text="Move Left").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.stage_left
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Move Right").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-300,
+            to=300,
+            textvariable=self.stage_right
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Move Up").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-1000,
+            to=1000,
+            textvariable=self.stage_up
+        ).pack(fill="x")
+
+        ttk.Label(f, text="Move Down").pack(anchor="w")
+        ttk.Spinbox(
+            f,
+            from_=-1000,
+            to=1000,
+            textvariable=self.stage_down
+        ).pack(fill="x")
+   
     # ---------------- COLORS ----------------
     def build_color_section(self):
 
@@ -667,6 +876,30 @@ class CardGeneratorGUI:
 
         ttk.Button(green, text="Answer Outline",
                 command=self.pick_green_a_outline).pack(fill="x")
+        
+        ttk.Button(
+            green,
+            text="Subject Color",
+            command=self.pick_green_subject_fill
+        ).pack(fill="x")
+
+        ttk.Button(
+            green,
+            text="Subject Outline",
+            command=self.pick_green_subject_outline
+        ).pack(fill="x")
+
+        ttk.Button(
+            green,
+            text="Stage Color",
+            command=self.pick_green_stage_fill
+        ).pack(fill="x")
+
+        ttk.Button(
+            green,
+            text="Stage Outline",
+            command=self.pick_green_stage_outline
+        ).pack(fill="x")
 
 
         red = self.section(self.color_tab, "Red Card")
@@ -682,6 +915,30 @@ class CardGeneratorGUI:
 
         ttk.Button(red, text="Answer Outline",
                 command=self.pick_red_a_outline).pack(fill="x")
+        
+        ttk.Button(
+            red,
+            text="Subject Color",
+            command=self.pick_red_subject_fill
+        ).pack(fill="x")
+
+        ttk.Button(
+            red,
+            text="Subject Outline",
+            command=self.pick_red_subject_outline
+        ).pack(fill="x")
+
+        ttk.Button(
+            red,
+            text="Stage Color",
+            command=self.pick_red_stage_fill
+        ).pack(fill="x")
+
+        ttk.Button(
+            red,
+            text="Stage Outline",
+            command=self.pick_red_stage_outline
+        ).pack(fill="x")
 
     # ---------------- ACTIONS ----------------
     def build_actions_section(self):
@@ -837,6 +1094,54 @@ class CardGeneratorGUI:
         if c:
             self.red_a_outline = c
             self.update_preview()
+    
+    def pick_green_subject_fill(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.green_subject_fill = c
+            self.update_preview()
+
+    def pick_green_subject_outline(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.green_subject_outline = c
+            self.update_preview()
+
+    def pick_green_stage_fill(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.green_stage_fill = c
+            self.update_preview()
+
+    def pick_green_stage_outline(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.green_stage_outline = c
+            self.update_preview()
+
+    def pick_red_subject_fill(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.red_subject_fill = c
+            self.update_preview()
+
+    def pick_red_subject_outline(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.red_subject_outline = c
+            self.update_preview()
+
+    def pick_red_stage_fill(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.red_stage_fill = c
+            self.update_preview()
+
+    def pick_red_stage_outline(self):
+        c = colorchooser.askcolor()[1]
+        if c:
+            self.red_stage_outline = c
+            self.update_preview()
 
     # =====================================================
     # PREVIEW
@@ -862,6 +1167,38 @@ class CardGeneratorGUI:
             a[3] + self.a_bottom.get(),
         ]
 
+        subject_box = self.base_boxes["subject"]
+
+        config.boxes["subject"] = [
+
+            subject_box[0]
+            - self.subject_left.get()
+            + self.subject_right.get(),
+
+            subject_box[1]
+            - self.subject_up.get()
+            + self.subject_down.get(),
+
+            subject_box[2],
+            subject_box[3],
+        ]
+
+        stage_box = self.base_boxes["stage"]
+
+        config.boxes["stage"] = [
+
+            stage_box[0]
+            - self.stage_left.get()
+            + self.stage_right.get(),
+
+            stage_box[1]
+            - self.stage_up.get()
+            + self.stage_down.get(),
+
+            stage_box[2],
+            stage_box[3],
+        ]
+
         config.style["question"]["font_max"] = self.q_max.get()
         config.style["question"]["font_min"] = self.q_min.get()
         config.style["answer"]["font_max"] = self.a_max.get()
@@ -879,6 +1216,16 @@ class CardGeneratorGUI:
         config.style["answer"]["margin_top"] = self.a_margin_top.get()
         config.style["answer"]["margin_bottom"] = self.a_margin_bottom.get()
 
+        # Subject typography
+        config.style["subject"]["font_size"] = self.subject_font_size.get()
+        config.style["subject"]["bold"] = self.subject_bold.get()
+        config.style["subject"]["italic"] = self.subject_italic.get()
+
+        # Stage typography
+        config.style["stage"]["font_size"] = self.stage_font_size.get()
+        config.style["stage"]["bold"] = self.stage_bold.get()
+        config.style["stage"]["italic"] = self.stage_italic.get()
+
         self.green_preview.update_idletasks()
 
         w = max(self.green_preview.winfo_width() - 20, 300)
@@ -893,14 +1240,35 @@ class CardGeneratorGUI:
             green_cfg.style["answer"]["fill"] = self.green_a_fill
             green_cfg.style["question"]["stroke_fill"] = self.green_q_outline
             green_cfg.style["answer"]["stroke_fill"] = self.green_a_outline
+            green_cfg.style["subject"]["fill"] = self.green_subject_fill
+            green_cfg.style["subject"]["stroke_fill"] = self.green_subject_outline
+            green_cfg.style["stage"]["fill"] = self.green_stage_fill
+            green_cfg.style["stage"]["stroke_fill"] = self.green_stage_outline
 
             green = create_card(
-                "Sample Question",
-                "Sample Answer",
-                None,
-                green_cfg,
-                self.green_template_path,
-                self.font_map.get(self.font_var.get(), "Arial"),
+                question="Sample Question",
+                answer="Sample Answer",
+
+                subject=self.subject_var.get(),
+                stage=self.stage_var.get(),
+
+                subject_font_path=self.font_map.get(
+                    self.subject_font_var.get(),
+                    "Arial"
+                ),
+
+                stage_font_path=self.font_map.get(
+                    self.stage_font_var.get(),
+                    "Arial"
+                ),
+
+                output_file=None,
+                config=green_cfg,
+                template_path=self.green_template_path,
+                font_path=self.font_map.get(
+                    self.font_var.get(),
+                    "Arial"
+                ),
                 preview=True,
             )
 
@@ -923,14 +1291,35 @@ class CardGeneratorGUI:
             red_cfg.style["answer"]["fill"] = self.red_a_fill
             red_cfg.style["question"]["stroke_fill"] = self.red_q_outline
             red_cfg.style["answer"]["stroke_fill"] = self.red_a_outline
+            red_cfg.style["subject"]["fill"] = self.red_subject_fill
+            red_cfg.style["subject"]["stroke_fill"] = self.red_subject_outline
+            red_cfg.style["stage"]["fill"] = self.red_stage_fill
+            red_cfg.style["stage"]["stroke_fill"] = self.red_stage_outline
 
             red = create_card(
-                "Sample Question",
-                "Sample Answer",
-                None,
-                red_cfg,
-                self.red_template_path,
-                self.font_map.get(self.font_var.get(), "Arial"),
+                question="Sample Question",
+                answer="Sample Answer",
+
+                subject=self.subject_var.get(),
+                stage=self.stage_var.get(),
+
+                subject_font_path=self.font_map.get(
+                    self.subject_font_var.get(),
+                    "Arial"
+                ),
+
+                stage_font_path=self.font_map.get(
+                    self.stage_font_var.get(),
+                    "Arial"
+                ),
+
+                output_file=None,
+                config=red_cfg,
+                template_path=self.red_template_path,
+                font_path=self.font_map.get(
+                    self.font_var.get(),
+                    "Arial"
+                ),
                 preview=True,
             )
 
@@ -1000,6 +1389,17 @@ class CardGeneratorGUI:
         self.red_a_fill = "#FFFF00"
         self.red_q_outline = "#000000"
         self.red_a_outline = "#000000"
+
+        # Subject & Stage
+        self.green_subject_fill="#FFFFFF"
+        self.green_subject_outline="#000000"
+        self.green_stage_fill="#FFFFFF"
+        self.green_stage_outline="#000000"
+
+        self.red_subject_fill="#FFFF00"
+        self.red_subject_outline="#000000"
+        self.red_stage_fill="#FFFF00"
+        self.red_stage_outline="#000000"
 
         # ---------------- Clear Project Selection ----------------
         self.green_template_path = None
@@ -1097,6 +1497,24 @@ class CardGeneratorGUI:
             a[3] + self.a_bottom.get(),
         ]
 
+        subject_box = self.base_boxes["subject"]
+
+        config.boxes["subject"] = [
+            subject_box[0] - self.subject_left.get() + self.subject_right.get(),
+            subject_box[1] - self.subject_up.get() + self.subject_down.get(),
+            subject_box[2],
+            subject_box[3],
+        ]
+
+        stage_box = self.base_boxes["stage"]
+
+        config.boxes["stage"] = [
+            stage_box[0] - self.stage_left.get() + self.stage_right.get(),
+            stage_box[1] - self.stage_up.get() + self.stage_down.get(),
+            stage_box[2],
+            stage_box[3],
+        ]
+
         # Fonts
         config.style["question"]["font_max"] = self.q_max.get()
         config.style["question"]["font_min"] = self.q_min.get()
@@ -1116,6 +1534,18 @@ class CardGeneratorGUI:
         config.style["answer"]["margin_bottom"] = self.a_margin_bottom.get()
 
         self.output_dir.mkdir(exist_ok=True)
+
+        # ---------------- Subject ----------------
+
+        config.style["subject"]["font_size"] = self.subject_font_size.get()
+        config.style["subject"]["bold"] = self.subject_bold.get()
+        config.style["subject"]["italic"] = self.subject_italic.get()
+
+        # ---------------- Stage ----------------
+
+        config.style["stage"]["font_size"] = self.stage_font_size.get()
+        config.style["stage"]["bold"] = self.stage_bold.get()
+        config.style["stage"]["italic"] = self.stage_italic.get()
 
         start = self.start_row.get()
         end = self.end_row.get()
@@ -1186,6 +1616,10 @@ class CardGeneratorGUI:
                 cfg.style["answer"]["fill"] = self.green_a_fill
                 cfg.style["question"]["stroke_fill"] = self.green_q_outline
                 cfg.style["answer"]["stroke_fill"] = self.green_a_outline
+                cfg.style["subject"]["fill"] = self.green_subject_fill
+                cfg.style["subject"]["stroke_fill"] = self.green_subject_outline
+                cfg.style["stage"]["fill"] = self.green_stage_fill
+                cfg.style["stage"]["stroke_fill"] = self.green_stage_outline
 
                 template = self.green_template_path
 
@@ -1202,6 +1636,10 @@ class CardGeneratorGUI:
                 cfg.style["answer"]["fill"] = self.red_a_fill
                 cfg.style["question"]["stroke_fill"] = self.red_q_outline
                 cfg.style["answer"]["stroke_fill"] = self.red_a_outline
+                cfg.style["subject"]["fill"] = self.red_subject_fill
+                cfg.style["subject"]["stroke_fill"] = self.red_subject_outline
+                cfg.style["stage"]["fill"] = self.red_stage_fill
+                cfg.style["stage"]["stroke_fill"] = self.red_stage_outline
 
                 template = self.red_template_path
 
@@ -1213,12 +1651,29 @@ class CardGeneratorGUI:
 
 
             create_card(
-                str(row[0]),
-                str(row[1]),
-                self.output_dir / f"Card_{card_no:03}.png",
-                cfg,
-                template,
-                self.font_map.get(self.font_var.get(), "Arial"),
+                question=str(row[0]),
+                answer=str(row[1]),
+
+                subject=self.subject_var.get(),
+                stage=self.stage_var.get(),
+
+                subject_font_path=self.font_map.get(
+                    self.subject_font_var.get(),
+                    "Arial"
+                ),
+
+                stage_font_path=self.font_map.get(
+                    self.stage_font_var.get(),
+                    "Arial"
+                ),
+
+                output_file=self.output_dir / f"Card_{card_no:03}.png",
+                config=cfg,
+                template_path=template,
+                font_path=self.font_map.get(
+                    self.font_var.get(),
+                    "Arial"
+                ),
             )
 
             card_no += 1

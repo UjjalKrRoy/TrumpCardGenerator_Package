@@ -8,159 +8,223 @@ from copy import deepcopy
 # =========================================================
 class Config:
     """
-    Central configuration object for card generator.
+    Central configuration object.
 
-    Responsibilities:
-    - box layout (question/answer regions)
-    - style settings (fonts, colors, stroke)
-    - output settings
+    Stores:
+    - Box positions
+    - Typography
+    - Colours
+    - Output settings
     """
 
     def __init__(self, data: dict):
         self._data = data
 
-        # Core sections
         self.boxes = data.get("boxes", {})
         self.style = data.get("style", {})
         self.output = data.get("output", {})
 
-        # Ensure structure consistency
-        self.style.setdefault("question", {})
-        self.style.setdefault("answer", {})
+        # Ensure every style exists
+        for section in (
+            "question",
+            "answer",
+            "subject",
+            "stage",
+        ):
+            self.style.setdefault(section, {})
 
     # =====================================================
-    # BOX SYSTEM
+    # BOXES
     # =====================================================
 
-    def get_box(self, name: str):
+    def get_box(self, name):
         if name not in self.boxes:
-            raise KeyError(f"Missing box in config: {name}")
+            raise KeyError(f"Missing box: {name}")
         return self.boxes[name]
 
-    def set_box(self, name: str, value):
+    def set_box(self, name, value):
         self.boxes[name] = value
 
-    def update_box_offset(self, name: str, offset_y: int):
-        """
-        Safely adjust Y offset without breaking original layout.
-        """
+    def update_box_offset(self, name, offset_y):
+
         if name not in self.boxes:
             raise KeyError(f"Missing box: {name}")
 
         x, y, w, h = self.boxes[name]
-        self.boxes[name] = [x, y + offset_y, w, h]
 
-    def reset_boxes(self, original_boxes: dict):
-        """
-        Restore base layout (used in GUI preview system).
-        """
+        self.boxes[name] = [
+            x,
+            y + offset_y,
+            w,
+            h,
+        ]
+
+    def reset_boxes(self, original_boxes):
         self.boxes = deepcopy(original_boxes)
 
     # =====================================================
-    # STYLE SYSTEM
+    # STYLE
     # =====================================================
 
-    def get_style(self, section: str):
+    def get_style(self, section):
         return self.style.get(section, {})
 
-    def set_style(self, section: str, key: str, value):
-        if section not in self.style:
-            self.style[section] = {}
+    def set_style(self, section, key, value):
+
+        self.style.setdefault(section, {})
 
         self.style[section][key] = value
 
-    def update_style(self, section: str, updates: dict):
-        """
-        Bulk update style section.
-        """
-        if section not in self.style:
-            self.style[section] = {}
+    def update_style(self, section, updates):
+
+        self.style.setdefault(section, {})
 
         self.style[section].update(updates)
 
-    def safe_style(self, section: str):
-        """
-        Always returns a mutable dict safely.
-        """
+    def safe_style(self, section):
         return self.style.setdefault(section, {})
 
     # =====================================================
-    # OUTPUT SETTINGS
+    # OUTPUT
     # =====================================================
 
     def get_output(self):
         return self.output
 
-    def set_output(self, key: str, value):
+    def set_output(self, key, value):
         self.output[key] = value
 
     # =====================================================
-    # FONT SYSTEM
+    # FONT
     # =====================================================
 
     def get_font_family(self):
         return self._data.get("font_family", "Arial")
 
-    def set_font_family(self, font_name: str):
-        self._data["font_family"] = font_name
+    def set_font_family(self, font):
+        self._data["font_family"] = font
 
     # =====================================================
-    # SAFE COPY (VERY IMPORTANT FOR PREVIEW)
+    # COPY
     # =====================================================
 
     def copy(self):
-        """
-        Returns a fully independent copy of config.
-        Used for GUI preview to avoid mutation bugs.
-        """
-        return Config(deepcopy(self._data))
+        return Config(
+            deepcopy(self._data)
+        )
 
     # =====================================================
-    # SAVE CONFIG
+    # SAVE
     # =====================================================
 
     def save(self, config_path):
-        config_path = Path(config_path)
-        config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(self._data, f, indent=4, ensure_ascii=False)
+        config_path = Path(config_path)
+
+        config_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        with open(
+            config_path,
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            json.dump(
+                self._data,
+                f,
+                indent=4,
+                ensure_ascii=False,
+            )
 
 
 # =========================================================
 # LOAD CONFIG
 # =========================================================
+
 def load_config(config_path):
+
     config_path = Path(config_path)
 
     if not config_path.exists():
-        raise FileNotFoundError(f"Config file not found: {config_path}")
+        raise FileNotFoundError(
+            f"Config file not found: {config_path}"
+        )
 
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(
+        config_path,
+        "r",
+        encoding="utf-8"
+    ) as f:
+
         data = json.load(f)
 
     # -----------------------------------------------------
-    # VALIDATION
+    # Required Sections
     # -----------------------------------------------------
 
-    if "boxes" not in data:
-        raise KeyError("'boxes' section is missing in config.json")
+    data.setdefault("boxes", {})
+    data.setdefault("style", {})
+    data.setdefault("output", {})
 
-    if "style" not in data:
-        data["style"] = {}
+    # -----------------------------------------------------
+    # Required Boxes
+    # -----------------------------------------------------
 
-    if "output" not in data:
-        data["output"] = {}
+    defaults = {
 
-    # Required boxes
-    required_boxes = ["question", "answer"]
+        "question": [70, 150, 460, 180],
 
-    for box in required_boxes:
-        if box not in data["boxes"]:
-            raise KeyError(f"Missing required box: {box}")
+        "answer": [120, 350, 360, 100],
 
-    # Ensure structure consistency
-    data["style"].setdefault("question", {})
-    data["style"].setdefault("answer", {})
+        "subject": [70, 35, 240, 40],
+
+        "stage": [390, 35, 90, 40],
+    }
+
+    for key, value in defaults.items():
+        data["boxes"].setdefault(key, value)
+
+    # -----------------------------------------------------
+    # Required Style Sections
+    # -----------------------------------------------------
+
+    for section in (
+
+        "question",
+
+        "answer",
+
+        "subject",
+
+        "stage",
+
+    ):
+
+        data["style"].setdefault(section, {})
+
+    # Subject defaults
+
+    subject = data["style"]["subject"]
+
+    subject.setdefault("font_size", 24)
+    subject.setdefault("fill", "#FFFFFF")
+    subject.setdefault("stroke_fill", "#000000")
+    subject.setdefault("stroke_width", 2)
+    subject.setdefault("bold", False)
+    subject.setdefault("italic", False)
+
+    # Stage defaults
+
+    stage = data["style"]["stage"]
+
+    stage.setdefault("font_size", 24)
+    stage.setdefault("fill", "#FFFFFF")
+    stage.setdefault("stroke_fill", "#000000")
+    stage.setdefault("stroke_width", 2)
+    stage.setdefault("bold", False)
+    stage.setdefault("italic", False)
 
     return Config(data)
