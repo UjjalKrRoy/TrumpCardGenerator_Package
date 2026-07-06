@@ -86,7 +86,6 @@ def download_and_replace():
         with open(new_exe, "wb") as f:
 
             for chunk in response.iter_content(8192):
-
                 if chunk:
                     f.write(chunk)
 
@@ -102,40 +101,39 @@ def download_and_replace():
             f.write(f"""@echo off
 setlocal
 
-echo Waiting for Trump Card Generator to close...
+echo Waiting for application to close...
 
 :WAIT
-
 tasklist /FI "IMAGENAME eq TrumpCardGenerator.exe" | find /I "TrumpCardGenerator.exe" >nul
-
 if not errorlevel 1 (
     timeout /t 1 >nul
     goto WAIT
 )
 
-timeout /t 2 >nul
+echo Replacing executable...
 
-copy /Y "{new_exe}" "{current_exe}"
+move /Y "{new_exe}" "{current_exe}" >nul
 
 if errorlevel 1 (
-    echo Failed to replace executable.
-    pause
-    exit
+    copy /Y "{new_exe}" "{current_exe}" >nul
 )
 
-del "{new_exe}"
+timeout /t 3 >nul
 
 start "" "{current_exe}"
+
+del "{new_exe}" >nul 2>&1
 
 del "%~f0"
 """)
 
         subprocess.Popen(
             ["cmd", "/c", bat_file],
-            creationflags=subprocess.CREATE_NO_WINDOW
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            close_fds=True
         )
 
-        # Close current application completely
+        # Exit immediately
         os._exit(0)
 
     except Exception as e:
