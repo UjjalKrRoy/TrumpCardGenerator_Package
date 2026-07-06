@@ -274,22 +274,20 @@ class CardGeneratorGUI:
         )
 
         self.left_panel.pack_propagate(False)
-    
 
-       
-        self.project_tab = ttk.Frame(self.notebook,padding=10)
-        self.style_tab = ttk.Frame(self.notebook,padding=10)
+        project_container, self.project_tab = self.create_scrollable_tab()
+        style_container, self.style_tab = self.create_scrollable_tab()
         layout_container, self.layout_tab = self.create_scrollable_tab()
-        self.color_tab = ttk.Frame(self.notebook,padding=10)
-        self.help_tab = ttk.Frame(self.notebook, padding=10)
+        color_container, self.color_tab = self.create_scrollable_tab()
+        help_container, self.help_tab = self.create_scrollable_tab()
 
         self.notebook.add(
-            self.project_tab,
+            project_container,
             text="Project"
         )
 
         self.notebook.add(
-            self.style_tab,
+            style_container,
             text="Typography"
         )
 
@@ -299,12 +297,12 @@ class CardGeneratorGUI:
         )
 
         self.notebook.add(
-            self.color_tab,
+            color_container,
             text="Colors"
         )
 
         self.notebook.add(
-            self.help_tab,
+            help_container,
             text="Help"
         )
 
