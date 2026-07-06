@@ -1,19 +1,33 @@
-import json
-import os
 import subprocess
 import sys
 import tempfile
+import os
 import requests
 
 from tkinter import messagebox
 
-GITHUB_VERSION = "https://raw.githubusercontent.com/UjjalKrRoy/TrumpCardGenerator_Package/master/version.json"
-
-GITHUB_EXE = "https://github.com/UjjalKrRoy/TrumpCardGenerator_Package/releases/latest/download/TrumpCardGenerator.exe"
-
-
 from src.version import APP_VERSION
 
+
+# --------------------------------------------------------
+# GitHub URLs
+# --------------------------------------------------------
+
+GITHUB_VERSION = (
+    "https://raw.githubusercontent.com/"
+    "UjjalKrRoy/TrumpCardGenerator_Package/master/version.json"
+)
+
+GITHUB_EXE = (
+    "https://github.com/"
+    "UjjalKrRoy/TrumpCardGenerator_Package/releases/latest/download/"
+    "TrumpCardGenerator.exe"
+)
+
+
+# --------------------------------------------------------
+# Version
+# --------------------------------------------------------
 
 def get_local_version():
     return APP_VERSION
@@ -21,8 +35,7 @@ def get_local_version():
 
 def get_online_version():
 
-    r = requests.get(GITHUB_VERSION, timeout=10)
-
+    r = requests.get(GITHUB_VERSION, timeout=15)
     r.raise_for_status()
 
     return r.json()["version"]
@@ -33,10 +46,9 @@ def check_for_update():
     try:
 
         local = get_local_version()
-
         online = get_online_version()
 
-        return online != local, online
+        return local != online, online
 
     except Exception as e:
 
@@ -47,6 +59,10 @@ def check_for_update():
 
         return False, None
 
+
+# --------------------------------------------------------
+# Download + Replace
+# --------------------------------------------------------
 
 def download_and_replace():
 
@@ -59,54 +75,68 @@ def download_and_replace():
             "TrumpCardGenerator_new.exe"
         )
 
-        r = requests.get(
+        response = requests.get(
             GITHUB_EXE,
             stream=True,
-            timeout=60
+            timeout=120
         )
 
-        r.raise_for_status()
+        response.raise_for_status()
 
         with open(new_exe, "wb") as f:
 
-            for chunk in r.iter_content(8192):
+            for chunk in response.iter_content(8192):
 
-                f.write(chunk)
+                if chunk:
+                    f.write(chunk)
 
-        current = sys.executable
+        current_exe = sys.executable
 
-        bat = os.path.join(
+        bat_file = os.path.join(
             temp,
-            "update.bat"
+            "TrumpCardGenerator_Update.bat"
         )
 
-        with open(bat, "w") as b:
+        with open(bat_file, "w") as f:
 
-            b.write(f"""@echo off
-timeout /t 2 >nul
+            f.write(f"""@echo off
+setlocal
 
-:loop
-tasklist | find /I "TrumpCardGenerator.exe" >nul
+echo Waiting for Trump Card Generator to close...
+
+:WAIT
+
+tasklist /FI "IMAGENAME eq TrumpCardGenerator.exe" | find /I "TrumpCardGenerator.exe" >nul
+
 if not errorlevel 1 (
     timeout /t 1 >nul
-    goto loop
+    goto WAIT
 )
 
-copy /Y "{new_exe}" "{current}"
+timeout /t 2 >nul
 
-start "" "{current}"
+copy /Y "{new_exe}" "{current_exe}"
+
+if errorlevel 1 (
+    echo Failed to replace executable.
+    pause
+    exit
+)
 
 del "{new_exe}"
+
+start "" "{current_exe}"
 
 del "%~f0"
 """)
 
         subprocess.Popen(
-            bat,
-            shell=True
+            ["cmd", "/c", bat_file],
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
 
-        sys.exit()
+        # Close current application completely
+        os._exit(0)
 
     except Exception as e:
 
