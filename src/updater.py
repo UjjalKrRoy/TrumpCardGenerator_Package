@@ -12,17 +12,11 @@ GITHUB_VERSION = "https://raw.githubusercontent.com/UjjalKrRoy/TrumpCardGenerato
 GITHUB_EXE = "https://github.com/UjjalKrRoy/TrumpCardGenerator_Package/releases/latest/download/TrumpCardGenerator.exe"
 
 
+from src.version import APP_VERSION
+
+
 def get_local_version():
-
-    if getattr(sys, "frozen", False):
-        base = os.path.dirname(sys.executable)
-    else:
-        base = os.path.dirname(os.path.dirname(__file__))
-
-    version_file = os.path.join(base, "version.json")
-
-    with open(version_file, "r") as f:
-        return json.load(f)["version"]
+    return APP_VERSION
 
 
 def get_online_version():
