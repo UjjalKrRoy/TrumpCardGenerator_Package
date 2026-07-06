@@ -10,6 +10,7 @@ from matplotlib import font_manager
 
 from src.config import load_config
 from src.renderer import create_card
+from src.updater import check_for_update, download_and_replace
 
 
 # =========================================================
@@ -280,6 +281,7 @@ class CardGeneratorGUI:
         self.style_tab = ttk.Frame(self.notebook,padding=10)
         layout_container, self.layout_tab = self.create_scrollable_tab()
         self.color_tab = ttk.Frame(self.notebook,padding=10)
+        self.help_tab = ttk.Frame(self.notebook, padding=10)
 
         self.notebook.add(
             self.project_tab,
@@ -299,6 +301,11 @@ class CardGeneratorGUI:
         self.notebook.add(
             self.color_tab,
             text="Colors"
+        )
+
+        self.notebook.add(
+            self.help_tab,
+            text="Help"
         )
 
         self.right_panel = ttk.Frame(
@@ -385,6 +392,7 @@ class CardGeneratorGUI:
         self.build_style_section()
         self.build_layout_section()
         self.build_color_section()
+        self.build_help_section()
         self.build_actions_section()
 
         # =====================================================
@@ -939,7 +947,24 @@ class CardGeneratorGUI:
             text="Stage Outline",
             command=self.pick_red_stage_outline
         ).pack(fill="x")
+    # ---------------- HELP ----------------
+    def build_help_section(self):
 
+        f = self.section(
+            self.help_tab,
+            "Software Update"
+        )
+
+        ttk.Label(
+            f,
+            text="Check whether a newer version is available."
+        ).pack(anchor="w", pady=(0, 10))
+
+        ttk.Button(
+            f,
+            text="Check for Updates",
+            command=self.check_updates
+        ).pack(fill="x")
     # ---------------- ACTIONS ----------------
     def build_actions_section(self):
         f = self.section(
@@ -1706,6 +1731,26 @@ class CardGeneratorGUI:
                 self.log_box.see("end")
             )
         )
+    def check_updates(self):
+
+        update_available, version = check_for_update()
+
+        if not update_available:
+
+            messagebox.showinfo(
+                "Software Update",
+                "You are already using the latest version."
+            )
+            return
+
+        answer = messagebox.askyesno(
+            "Software Update",
+            f"Version {version} is available.\n\n"
+            "Do you want to update now?"
+        )
+
+        if answer:
+            download_and_replace()
 
 
 if __name__ == "__main__":
