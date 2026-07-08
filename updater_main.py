@@ -42,6 +42,8 @@ def main():
     time.sleep(2)
 
     # Try replacing several times
+    replaced = False
+
     for _ in range(10):
 
         try:
@@ -51,19 +53,27 @@ def main():
 
             shutil.move(new_exe, target_exe)
 
+            replaced = True
             break
 
         except Exception:
 
             time.sleep(1)
 
-    # Small delay before restarting
-    time.sleep(2)
+    if not replaced:
+        sys.exit(1)
+
+    # Give Windows time to release the executable
+    time.sleep(5)
 
     subprocess.Popen(
         [target_exe],
+        cwd=os.path.dirname(target_exe),
         close_fds=True
     )
+
+    # Give the application time to start
+    time.sleep(2)
 
     # Delete downloaded file if still exists
     try:
