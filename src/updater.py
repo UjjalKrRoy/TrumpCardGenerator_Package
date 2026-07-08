@@ -1,3 +1,4 @@
+import time
 import os
 import subprocess
 import sys
@@ -74,6 +75,9 @@ def download_and_replace():
 
     try:
 
+        import tkinter as tk
+        from tkinter import ttk
+
         temp = tempfile.gettempdir()
 
         new_exe = os.path.join(
@@ -81,14 +85,56 @@ def download_and_replace():
             "TrumpCardGenerator_new.exe"
         )
 
-        updater_exe = os.path.join(
-            temp,
-            "Updater.exe"
+        # -----------------------------
+        # Download Window
+        # -----------------------------
+
+        win = tk.Tk()
+
+        win.title("Trump Card Generator Updater")
+        win.geometry("420x180")
+        win.resizable(False, False)
+
+        try:
+            win.iconbitmap("icon.ico")
+        except:
+            pass
+
+        ttk.Label(
+            win,
+            text="Downloading Update",
+            font=("Segoe UI", 12, "bold")
+        ).pack(pady=(15, 8))
+
+        progress = ttk.Progressbar(
+            win,
+            orient="horizontal",
+            length=360,
+            mode="determinate"
         )
 
-        # -----------------------------------------
-        # Download new TrumpCardGenerator.exe
-        # -----------------------------------------
+        progress.pack(pady=10)
+
+        percent = tk.StringVar(value="0 %")
+
+        ttk.Label(
+            win,
+            textvariable=percent,
+            font=("Segoe UI", 10)
+        ).pack()
+
+        size_text = tk.StringVar(value="Preparing download...")
+
+        ttk.Label(
+            win,
+            textvariable=size_text
+        ).pack(pady=(8, 0))
+
+        win.update()
+
+        # -----------------------------
+        # Download
+        # -----------------------------
 
         response = requests.get(
             GITHUB_EXE,
@@ -98,50 +144,78 @@ def download_and_replace():
 
         response.raise_for_status()
 
+        total = int(
+            response.headers.get(
+                "content-length",
+                0
+            )
+        )
+
+        downloaded = 0
+
         with open(new_exe, "wb") as f:
 
             for chunk in response.iter_content(8192):
 
-                if chunk:
-                    f.write(chunk)
+                if not chunk:
+                    continue
 
-        # -----------------------------------------
-        # Download Updater.exe
-        # -----------------------------------------
+                f.write(chunk)
 
-        response = requests.get(
-            GITHUB_UPDATER,
-            stream=True,
-            timeout=120
+                downloaded += len(chunk)
+
+                if total > 0:
+
+                    p = downloaded * 100 / total
+
+                    progress["value"] = p
+
+                    percent.set(
+                        f"{p:.0f} %"
+                    )
+
+                    size_text.set(
+                        f"{downloaded/1024/1024:.2f} MB / {total/1024/1024:.2f} MB"
+                    )
+
+                    win.update()
+
+        # -----------------------------
+        # Download Complete
+        # -----------------------------
+
+        percent.set("100 %")
+
+        size_text.set(
+            "Download Complete"
         )
 
-        response.raise_for_status()
+        progress["value"] = 100
 
-        with open(updater_exe, "wb") as f:
+        win.update()
 
-            for chunk in response.iter_content(8192):
+        time.sleep(0.5)
 
-                if chunk:
-                    f.write(chunk)
+        win.destroy()
+
+        # -----------------------------
+        # Start Updater.exe
+        # -----------------------------
 
         current_exe = sys.executable
 
-        # -----------------------------------------
-        # Launch Updater.exe
-        # -----------------------------------------
+        updater = os.path.join(
+            os.path.dirname(current_exe),
+            "Updater.exe"
+        )
 
         subprocess.Popen(
             [
-                updater_exe,
+                updater,
                 new_exe,
                 current_exe
-            ],
-            close_fds=True
+            ]
         )
-
-        # -----------------------------------------
-        # Exit current application
-        # -----------------------------------------
 
         os._exit(0)
 
