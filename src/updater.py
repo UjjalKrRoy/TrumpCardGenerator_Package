@@ -1,7 +1,7 @@
+import os
 import subprocess
 import sys
 import tempfile
-import os
 import requests
 
 from tkinter import messagebox
@@ -22,6 +22,12 @@ GITHUB_EXE = (
     "https://github.com/"
     "UjjalKrRoy/TrumpCardGenerator_Package/releases/latest/download/"
     "TrumpCardGenerator.exe"
+)
+
+GITHUB_UPDATER = (
+    "https://github.com/"
+    "UjjalKrRoy/TrumpCardGenerator_Package/releases/latest/download/"
+    "Updater.exe"
 )
 
 
@@ -75,6 +81,15 @@ def download_and_replace():
             "TrumpCardGenerator_new.exe"
         )
 
+        updater_exe = os.path.join(
+            temp,
+            "Updater.exe"
+        )
+
+        # -----------------------------------------
+        # Download new TrumpCardGenerator.exe
+        # -----------------------------------------
+
         response = requests.get(
             GITHUB_EXE,
             stream=True,
@@ -86,54 +101,48 @@ def download_and_replace():
         with open(new_exe, "wb") as f:
 
             for chunk in response.iter_content(8192):
+
+                if chunk:
+                    f.write(chunk)
+
+        # -----------------------------------------
+        # Download Updater.exe
+        # -----------------------------------------
+
+        response = requests.get(
+            GITHUB_UPDATER,
+            stream=True,
+            timeout=120
+        )
+
+        response.raise_for_status()
+
+        with open(updater_exe, "wb") as f:
+
+            for chunk in response.iter_content(8192):
+
                 if chunk:
                     f.write(chunk)
 
         current_exe = sys.executable
 
-        bat_file = os.path.join(
-            temp,
-            "TrumpCardGenerator_Update.bat"
-        )
-
-        with open(bat_file, "w") as f:
-
-            f.write(f"""@echo off
-setlocal
-
-echo Waiting for application to close...
-
-:WAIT
-tasklist /FI "IMAGENAME eq TrumpCardGenerator.exe" | find /I "TrumpCardGenerator.exe" >nul
-if not errorlevel 1 (
-    timeout /t 1 >nul
-    goto WAIT
-)
-
-echo Replacing executable...
-
-move /Y "{new_exe}" "{current_exe}" >nul
-
-if errorlevel 1 (
-    copy /Y "{new_exe}" "{current_exe}" >nul
-)
-
-timeout /t 3 >nul
-
-start "" "{current_exe}"
-
-del "{new_exe}" >nul 2>&1
-
-del "%~f0"
-""")
+        # -----------------------------------------
+        # Launch Updater.exe
+        # -----------------------------------------
 
         subprocess.Popen(
-            ["cmd", "/c", bat_file],
-            creationflags=subprocess.CREATE_NO_WINDOW,
+            [
+                updater_exe,
+                new_exe,
+                current_exe
+            ],
             close_fds=True
         )
 
-        # Exit immediately
+        # -----------------------------------------
+        # Exit current application
+        # -----------------------------------------
+
         os._exit(0)
 
     except Exception as e:

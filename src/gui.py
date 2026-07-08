@@ -95,7 +95,7 @@ class CardGeneratorGUI:
 
         base_dir = Path(__file__).resolve().parent.parent
 
-        self.root.title("Trump Card Generator v1.0.5")
+        self.root.title("Trump Card Generator v1.0.6")
 
         icon_path = base_dir / "icon.ico"
         if icon_path.exists():
