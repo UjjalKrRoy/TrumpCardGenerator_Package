@@ -3,17 +3,57 @@ import sys
 import time
 import shutil
 import subprocess
+import tkinter as tk
 
+
+# --------------------------------------------------------
+# Progress Window
+# --------------------------------------------------------
+
+root = tk.Tk()
+
+root.title("Trump Card Generator Updater")
+root.geometry("420x140")
+root.resizable(False, False)
+
+try:
+    root.iconbitmap("icon.ico")
+except Exception:
+    pass
+
+status = tk.StringVar(value="Preparing update...")
+
+frame = tk.Frame(root, padx=20, pady=20)
+frame.pack(fill="both", expand=True)
+
+tk.Label(
+    frame,
+    text="Updating Trump Card Generator",
+    font=("Segoe UI", 12, "bold")
+).pack(pady=(0, 12))
+
+tk.Label(
+    frame,
+    textvariable=status,
+    font=("Segoe UI", 10)
+).pack()
+
+
+def set_status(text):
+    status.set(text)
+    root.update()
+
+
+# --------------------------------------------------------
+# Wait until application exits
+# --------------------------------------------------------
 
 def wait_for_process(exe_name):
-    """
-    Wait until the application has completely exited.
-    """
 
     while True:
 
         result = subprocess.run(
-            'tasklist /FI "IMAGENAME eq {}"'.format(exe_name),
+            f'tasklist /FI "IMAGENAME eq {exe_name}"',
             capture_output=True,
             text=True,
             shell=True
@@ -22,12 +62,18 @@ def wait_for_process(exe_name):
         if exe_name.lower() not in result.stdout.lower():
             break
 
+        set_status("Waiting for application to close...")
         time.sleep(1)
 
+
+# --------------------------------------------------------
+# Main
+# --------------------------------------------------------
 
 def main():
 
     if len(sys.argv) != 3:
+        root.destroy()
         sys.exit(1)
 
     new_exe = sys.argv[1]
@@ -35,14 +81,14 @@ def main():
 
     exe_name = os.path.basename(target_exe)
 
-    # Wait until the application has exited
+    # Wait until application closes
     wait_for_process(exe_name)
 
-    # Give Windows a little extra time
-    time.sleep(2)
+    set_status("Installing update...")
 
-    # Try replacing several times
-    replaced = False
+    time.sleep(1)
+
+    success = False
 
     for _ in range(10):
 
@@ -53,37 +99,37 @@ def main():
 
             shutil.move(new_exe, target_exe)
 
-            replaced = True
+            success = True
             break
 
         except Exception:
 
             time.sleep(1)
 
-    if not replaced:
+    if not success:
+
+        set_status("Update failed.")
+
+        time.sleep(3)
+
+        root.destroy()
+
         sys.exit(1)
 
-    # Give Windows time to release the executable
-    time.sleep(5)
+    set_status("Restarting application...")
+
+    time.sleep(1)
 
     subprocess.Popen(
         [target_exe],
-        cwd=os.path.dirname(target_exe),
         close_fds=True
     )
 
-    # Give the application time to start
-    time.sleep(2)
-
-    # Delete downloaded file if still exists
-    try:
-
-        if os.path.exists(new_exe):
-            os.remove(new_exe)
-
-    except:
-        pass
+    root.destroy()
 
 
 if __name__ == "__main__":
-    main()
+
+    root.after(100, main)
+
+    root.mainloop()
