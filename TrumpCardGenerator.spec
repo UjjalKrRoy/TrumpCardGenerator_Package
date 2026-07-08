@@ -1,9 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('config.json', '.'), ('icon.ico', '.')]
+datas = [('config.json', '.'), ('icon.ico', '.'), ('dist\\Updater.exe', '.')]
 binaries = []
-hiddenimports = ['requests', 'src.updater', 'src.gui', 'src.renderer', 'src.config']
+hiddenimports = ['requests', 'src.version', 'src.updater', 'src.gui', 'src.renderer', 'src.config']
 tmp_ret = collect_all('matplotlib')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
