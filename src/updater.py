@@ -1,8 +1,8 @@
-import time
 import os
-import subprocess
 import sys
+import time
 import tempfile
+import subprocess
 import requests
 
 from tkinter import messagebox
@@ -85,14 +85,19 @@ def download_and_replace():
             "TrumpCardGenerator_new.exe"
         )
 
-        # -----------------------------
-        # Download Window
-        # -----------------------------
+        updater_exe = os.path.join(
+            temp,
+            "Updater.exe"
+        )
+
+        # --------------------------------------------------
+        # Progress Window
+        # --------------------------------------------------
 
         win = tk.Tk()
 
         win.title("Trump Card Generator Updater")
-        win.geometry("420x180")
+        win.geometry("430x180")
         win.resizable(False, False)
 
         try:
@@ -104,7 +109,7 @@ def download_and_replace():
             win,
             text="Downloading Update",
             font=("Segoe UI", 12, "bold")
-        ).pack(pady=(15, 8))
+        ).pack(pady=(15, 10))
 
         progress = ttk.Progressbar(
             win,
@@ -113,28 +118,27 @@ def download_and_replace():
             mode="determinate"
         )
 
-        progress.pack(pady=10)
+        progress.pack()
 
         percent = tk.StringVar(value="0 %")
 
         ttk.Label(
             win,
-            textvariable=percent,
-            font=("Segoe UI", 10)
-        ).pack()
+            textvariable=percent
+        ).pack(pady=(8, 0))
 
-        size_text = tk.StringVar(value="Preparing download...")
+        status = tk.StringVar(value="Preparing download...")
 
         ttk.Label(
             win,
-            textvariable=size_text
-        ).pack(pady=(8, 0))
+            textvariable=status
+        ).pack(pady=(5, 0))
 
         win.update()
 
-        # -----------------------------
-        # Download
-        # -----------------------------
+        # --------------------------------------------------
+        # Download Main EXE
+        # --------------------------------------------------
 
         response = requests.get(
             GITHUB_EXE,
@@ -144,12 +148,7 @@ def download_and_replace():
 
         response.raise_for_status()
 
-        total = int(
-            response.headers.get(
-                "content-length",
-                0
-            )
-        )
+        total = int(response.headers.get("content-length", 0))
 
         downloaded = 0
 
@@ -164,57 +163,86 @@ def download_and_replace():
 
                 downloaded += len(chunk)
 
-                if total > 0:
+                if total:
 
                     p = downloaded * 100 / total
 
                     progress["value"] = p
 
-                    percent.set(
-                        f"{p:.0f} %"
-                    )
+                    percent.set(f"{p:.0f} %")
 
-                    size_text.set(
-                        f"{downloaded/1024/1024:.2f} MB / {total/1024/1024:.2f} MB"
+                    status.set(
+                        f"Downloading application ({downloaded//1024//1024} MB / {total//1024//1024} MB)"
                     )
 
                     win.update()
 
-        # -----------------------------
-        # Download Complete
-        # -----------------------------
+        # --------------------------------------------------
+        # Download Updater.exe
+        # --------------------------------------------------
 
-        percent.set("100 %")
-
-        size_text.set(
-            "Download Complete"
-        )
-
-        progress["value"] = 100
+        progress["value"] = 0
+        percent.set("0 %")
+        status.set("Downloading updater...")
 
         win.update()
 
-        time.sleep(0.5)
+        response = requests.get(
+            GITHUB_UPDATER,
+            stream=True,
+            timeout=60
+        )
+
+        response.raise_for_status()
+
+        total = int(response.headers.get("content-length", 0))
+
+        downloaded = 0
+
+        with open(updater_exe, "wb") as f:
+
+            for chunk in response.iter_content(8192):
+
+                if not chunk:
+                    continue
+
+                f.write(chunk)
+
+                downloaded += len(chunk)
+
+                if total:
+
+                    p = downloaded * 100 / total
+
+                    progress["value"] = p
+
+                    percent.set(f"{p:.0f} %")
+
+                    win.update()
+
+        progress["value"] = 100
+        percent.set("100 %")
+        status.set("Starting updater...")
+
+        win.update()
+
+        time.sleep(0.7)
 
         win.destroy()
 
-        # -----------------------------
-        # Start Updater.exe
-        # -----------------------------
+        # --------------------------------------------------
+        # Start updater
+        # --------------------------------------------------
 
         current_exe = sys.executable
 
-        updater = os.path.join(
-            os.path.dirname(current_exe),
-            "Updater.exe"
-        )
-
         subprocess.Popen(
             [
-                updater,
+                updater_exe,
                 new_exe,
                 current_exe
-            ]
+            ],
+            close_fds=True
         )
 
         os._exit(0)
