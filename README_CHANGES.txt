@@ -11,3 +11,6 @@ Recommended new modules:
 - src/preview.py
 - src/widgets.py
 - src/generator.py
+
+#python -m PyInstaller run.py --onefile --windowed --icon icon.ico --name TrumpCardGenerator --add-data "config.json;." --add-data "icon.ico;." --add-data "dist\Updater.exe;." --hidden-import=requests --hidden-import=src.version --hidden-import=src.updater --hidden-import=src.gui --hidden-import=src.renderer --hidden-import=src.config --collect-all matplotlib --clean
+#python -m PyInstaller updater_main.py --onefile --windowed --icon icon.ico --name Updater --clean
