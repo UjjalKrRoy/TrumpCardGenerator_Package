@@ -4,6 +4,8 @@ import sys
 import tempfile
 import requests
 import time
+import shutil
+import uuid
 from tkinter import messagebox
 
 from src.version import APP_VERSION
@@ -23,13 +25,6 @@ GITHUB_EXE = (
     "UjjalKrRoy/TrumpCardGenerator_Package/releases/latest/download/"
     "TrumpCardGenerator.exe"
 )
-
-GITHUB_UPDATER = (
-    "https://github.com/"
-    "UjjalKrRoy/TrumpCardGenerator_Package/releases/latest/download/"
-    "Updater.exe"
-)
-
 
 # --------------------------------------------------------
 # Version
@@ -65,6 +60,46 @@ def check_for_update():
 
         return False, None
 
+# --------------------------------------------------------
+# Extract embedded Updater.exe
+# --------------------------------------------------------
+
+def extract_updater():
+
+    temp = tempfile.gettempdir()
+
+    updater = os.path.join(
+        temp,
+        f"Updater_{uuid.uuid4().hex}.exe"
+    )
+
+    if getattr(sys, "frozen", False):
+
+        source = os.path.join(
+            sys._MEIPASS,
+            "Updater.exe"
+        )
+
+    else:
+
+        source = os.path.join(
+            os.getcwd(),
+            "dist",
+            "Updater.exe"
+        )
+
+    if not os.path.exists(source):
+
+        raise FileNotFoundError(
+            f"Embedded Updater.exe not found:\n{source}"
+        )
+
+    shutil.copy2(
+        source,
+        updater
+    )
+
+    return updater
 
 # --------------------------------------------------------
 # Download + Replace
@@ -201,19 +236,24 @@ def download_and_replace():
         # Start Updater.exe
         # -----------------------------
 
-        current_exe = sys.executable
+        current_exe = os.path.abspath(sys.executable)
 
-        updater = os.path.join(
-            os.path.dirname(current_exe),
-            "Updater.exe"
-        )
+        updater = extract_updater()
+
+        time.sleep(0.5)
+
+        if not os.path.isfile(updater):
+            raise FileNotFoundError(
+                f"Failed to extract Updater.exe\n{updater}"
+            )
 
         subprocess.Popen(
             [
                 updater,
                 new_exe,
                 current_exe
-            ]
+            ],
+            close_fds=True
         )
 
         os._exit(0)
