@@ -1,3 +1,4 @@
+import traceback
 import os
 import sys
 import time
@@ -57,11 +58,11 @@ def check_for_update():
 
         return local != online, online
 
-    except Exception as e:
+    except Exception:
 
         messagebox.showerror(
-            "Update",
-            str(e)
+            "Update Error",
+            traceback.format_exc()
         )
 
         return False, None
@@ -234,22 +235,44 @@ def download_and_replace():
         # Start updater
         # --------------------------------------------------
 
-        current_exe = sys.executable
+        current_exe = os.path.abspath(sys.executable)
+
+        messagebox.showinfo(
+            "Updater Debug",
+            f"""
+        Updater.exe
+        {updater_exe}
+
+        Exists:
+        {os.path.exists(updater_exe)}
+
+        Downloaded EXE
+        {new_exe}
+
+        Exists:
+        {os.path.exists(new_exe)}
+
+        Current EXE
+        {current_exe}
+
+        Exists:
+        {os.path.exists(current_exe)}
+        """
+        )
 
         subprocess.Popen(
             [
                 updater_exe,
                 new_exe,
                 current_exe
-            ],
-            close_fds=True
+            ]
         )
 
         os._exit(0)
 
-    except Exception as e:
+    except Exception:
 
         messagebox.showerror(
-            "Update",
-            f"Unable to download update.\n\n{e}"
+            "Update Error",
+            traceback.format_exc()
         )
