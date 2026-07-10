@@ -121,8 +121,14 @@ def main():
     time.sleep(1)
 
     subprocess.Popen(
-        [target_exe],
-        close_fds=True
+        [
+            "cmd",
+            "/c",
+            "start",
+            "",
+            target_exe
+        ],
+        creationflags=subprocess.CREATE_NO_WINDOW
     )
 
     root.destroy()

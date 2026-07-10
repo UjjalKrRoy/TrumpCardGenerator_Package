@@ -260,12 +260,24 @@ def download_and_replace():
         """
         )
 
+        # Wait until Windows finishes writing Updater.exe
+        for _ in range(20):
+
+            if os.path.exists(updater_exe):
+                break
+
+            time.sleep(0.25)
+
+        # Small delay to avoid WinError 2
+        time.sleep(1)
+
         subprocess.Popen(
             [
                 updater_exe,
                 new_exe,
                 current_exe
-            ]
+            ],
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
         )
 
         os._exit(0)
