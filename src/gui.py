@@ -1,3 +1,4 @@
+import webbrowser
 from pathlib import Path
 import threading
 import tkinter as tk
@@ -95,7 +96,7 @@ class CardGeneratorGUI:
 
         base_dir = Path(__file__).resolve().parent.parent
 
-        self.root.title("Trump Card Generator v1.0.13")
+        self.root.title("Trump Card Generator v1.0.14")
 
         icon_path = base_dir / "icon.ico"
         if icon_path.exists():
@@ -963,6 +964,22 @@ class CardGeneratorGUI:
             text="Check for Updates",
             command=self.check_updates
         ).pack(fill="x")
+
+        ttk.Separator(
+            f,
+            orient="horizontal"
+        ).pack(fill="x", pady=15)
+
+        ttk.Label(
+            f,
+            text="Application Information"
+        ).pack(anchor="w", pady=(0, 10))
+
+        ttk.Button(
+            f,
+            text="About Trump Card Generator",
+            command=self.show_about
+        ).pack(fill="x")
     # ---------------- ACTIONS ----------------
     def build_actions_section(self):
         f = self.section(
@@ -1720,7 +1737,151 @@ class CardGeneratorGUI:
     # =====================================================
     # LOGGING
     # =====================================================
+    def show_about(self):
 
+        import tkinter as tk
+        from tkinter import ttk
+
+        from src.version import APP_VERSION
+
+        win = tk.Toplevel(self.root)
+
+        win.title("About Trump Card Generator")
+        win.geometry("500x430")
+        win.resizable(False, False)
+        win.transient(self.root)
+        win.grab_set()
+
+        try:
+            win.iconbitmap("icon.ico")
+        except:
+            pass
+
+        frame = ttk.Frame(
+            win,
+            padding=20
+        )
+
+        frame.pack(
+            fill="both",
+            expand=True
+        )
+
+        ttk.Label(
+            frame,
+            text="Trump Card Generator",
+            font=("Segoe UI", 16, "bold")
+        ).pack()
+
+        ttk.Label(
+            frame,
+            text=f"Version {APP_VERSION}",
+            foreground="blue",
+            font=("Segoe UI", 10)
+        ).pack(pady=(5,15))
+
+        ttk.Label(
+            frame,
+            text="Developed by",
+            font=("Segoe UI",10,"bold")
+        ).pack()
+
+        ttk.Label(
+            frame,
+            text="Ujjal Roy"
+        ).pack(pady=(0,15))
+
+        ttk.Label(
+            frame,
+            text="Create printable Trump Cards directly\nfrom Excel in just a few clicks.",
+            justify="center"
+        ).pack()
+
+        ttk.Separator(frame).pack(
+            fill="x",
+            pady=15
+        )
+
+        ttk.Label(
+            frame,
+            text="Features",
+            font=("Segoe UI",10,"bold")
+        ).pack(anchor="w")
+
+        features = [
+            "✔ Green Card Generation",
+            "✔ Red Card Generation",
+            "✔ Live Preview",
+            "✔ Excel Import",
+            "✔ Subject & Stage Support",
+            "✔ Auto Update",
+            "✔ High Resolution Export"
+        ]
+
+        for item in features:
+
+            ttk.Label(
+                frame,
+                text=item
+            ).pack(anchor="w")
+
+        ttk.Separator(frame).pack(
+            fill="x",
+            pady=15
+        )
+
+        ttk.Label(
+            frame,
+            text="GitHub",
+            font=("Segoe UI",10,"bold")
+        ).pack()
+
+        github = ttk.Label(
+            frame,
+            text="https://github.com/UjjalKrRoy",
+            foreground="blue",
+            cursor="hand2"
+        )
+
+        github.pack()
+
+        github.bind(
+            "<Button-1>",
+            lambda e: webbrowser.open(
+                "https://github.com/UjjalKrRoy"
+            )
+        )
+
+        ttk.Label(
+            frame,
+            text="© 2026 Ujjal Roy",
+            foreground="gray"
+        ).pack(
+            pady=(15,10)
+        )
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack()
+
+        ttk.Button(
+            btn_frame,
+            text="Visit GitHub",
+            command=lambda: webbrowser.open(
+                "https://github.com/UjjalKrRoy"
+            )
+        ).pack(
+            side="left",
+            padx=5
+        )
+
+        ttk.Button(
+            btn_frame,
+            text="Close",
+            command=win.destroy
+        ).pack(
+            side="left",
+            padx=5
+        )
     def log(self, msg):
         self.root.after(
             0,
