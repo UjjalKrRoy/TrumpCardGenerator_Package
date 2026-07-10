@@ -95,7 +95,7 @@ def download_and_replace():
         # Progress Window
         # --------------------------------------------------
 
-        win = tk.Tk()
+        win = tk.Toplevel()
 
         win.title("Trump Card Generator Updater")
         win.geometry("430x180")
@@ -135,7 +135,7 @@ def download_and_replace():
             textvariable=status
         ).pack(pady=(5, 0))
 
-        win.update()
+        win.update_idletasks()
 
         # --------------------------------------------------
         # Download Main EXE
@@ -176,7 +176,7 @@ def download_and_replace():
                         f"Downloading application ({downloaded//1024//1024} MB / {total//1024//1024} MB)"
                     )
 
-                    win.update()
+                    win.update_idletasks()
 
         # --------------------------------------------------
         # Download Updater.exe
@@ -186,7 +186,7 @@ def download_and_replace():
         percent.set("0 %")
         status.set("Downloading updater...")
 
-        win.update()
+        win.update_idletasks()
 
         response = requests.get(
             GITHUB_UPDATER,
@@ -219,17 +219,17 @@ def download_and_replace():
 
                     percent.set(f"{p:.0f} %")
 
-                    win.update()
+                    win.update_idletasks()
 
         progress["value"] = 100
         percent.set("100 %")
         status.set("Starting updater...")
 
-        win.update()
+        win.update_idletasks()
 
         time.sleep(0.7)
 
-        win.destroy()
+        win.withdraw()
 
         # --------------------------------------------------
         # Start updater
@@ -280,7 +280,7 @@ def download_and_replace():
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
         )
 
-        os._exit(0)
+        sys.exit()
 
     except Exception:
 
