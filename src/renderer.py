@@ -1,6 +1,11 @@
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
+from src.math_renderer import (
+    render_formula,
+    is_formula,
+)
+
 from src.text_engine import (
     draw_text_box,
     draw_single_text,
@@ -30,6 +35,56 @@ def resolve_font(font_input):
     # fallback: system font name (PIL will try best match)
     return str(font_input)
 
+# =========================================================
+# MATH FORMULA RESOLVER
+# =========================================================
+
+def draw_formula_box(
+    image,
+    latex,
+    box,
+    fill="#000000",
+    font_size=32,
+):
+    """
+    Draw a LaTeX formula centered inside the given box.
+    """
+
+    formula = render_formula(
+        latex=latex,
+        color=fill,
+        fontsize=font_size,
+    )
+
+    box_x, box_y, box_w, box_h = box
+
+    fw, fh = formula.size
+
+    scale = min(
+        box_w / fw,
+        box_h / fh,
+        1.0,
+    )
+
+    if scale < 1:
+
+        formula = formula.resize(
+            (
+                int(fw * scale),
+                int(fh * scale),
+            ),
+            Image.LANCZOS,
+        )
+
+        fw, fh = formula.size
+
+    x = box_x + (box_w - fw) // 2
+    y = box_y + (box_h - fh) // 2
+
+    image.alpha_composite(
+        formula,
+        (x, y),
+    )
 
 # =========================================================
 # CORE RENDER ENGINE
@@ -131,38 +186,62 @@ def create_card(
     # =====================================================
     # DRAW QUESTION
     # =====================================================
-    draw_text_box(
-        draw=draw,
-        text=question,
-        box=tuple(q_box),
-        font_path=font_path,
-        max_font_size=q_style.get("font_max", 32),
-        min_font_size=q_style.get("font_min", 18),
-        fill=q_style.get("fill", "#FFFFFF"),
-        stroke_fill=q_style.get("stroke_fill"),
-        stroke_width=q_style.get("stroke_width", 2),
-        align="center",
-        bold=q_style.get("bold", False),
-        italic=q_style.get("italic", False),
-    )
+    if is_formula(question):
+
+        draw_formula_box(
+            image=image,
+            latex=question,
+            box=tuple(q_box),
+            fill=q_style.get("fill", "#FFFFFF"),
+            font_size=q_style.get("font_max", 32),
+        )
+
+    else:
+
+        draw_text_box(
+            draw=draw,
+            text=question,
+            box=tuple(q_box),
+            font_path=font_path,
+            max_font_size=q_style.get("font_max", 32),
+            min_font_size=q_style.get("font_min", 18),
+            fill=q_style.get("fill", "#FFFFFF"),
+            stroke_fill=q_style.get("stroke_fill"),
+            stroke_width=q_style.get("stroke_width", 2),
+            align="center",
+            bold=q_style.get("bold", False),
+            italic=q_style.get("italic", False),
+        )
 
     # =====================================================
     # DRAW ANSWER
     # =====================================================
-    draw_text_box(
-        draw=draw,
-        text=answer,
-        box=tuple(a_box),
-        font_path=font_path,
-        max_font_size=a_style.get("font_max", 28),
-        min_font_size=a_style.get("font_min", 20),
-        fill=a_style.get("fill", "#FFFFFF"),
-        stroke_fill=a_style.get("stroke_fill"),
-        stroke_width=a_style.get("stroke_width", 2),
-        align="center",
-        bold=a_style.get("bold", False),
-        italic=a_style.get("italic", False),
-    )
+    if is_formula(answer):
+
+        draw_formula_box(
+            image=image,
+            latex=answer,
+            box=tuple(a_box),
+            fill=a_style.get("fill", "#FFFFFF"),
+            font_size=a_style.get("font_max", 28),
+        )
+
+    else:
+
+        draw_text_box(
+            draw=draw,
+            text=answer,
+            box=tuple(a_box),
+            font_path=font_path,
+            max_font_size=a_style.get("font_max", 28),
+            min_font_size=a_style.get("font_min", 20),
+            fill=a_style.get("fill", "#FFFFFF"),
+            stroke_fill=a_style.get("stroke_fill"),
+            stroke_width=a_style.get("stroke_width", 2),
+            align="center",
+            bold=a_style.get("bold", False),
+            italic=a_style.get("italic", False),
+        )
 
     # =====================================================
     # SUBJECT

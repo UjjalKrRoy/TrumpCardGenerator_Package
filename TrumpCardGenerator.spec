@@ -3,8 +3,14 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('config.json', '.'), ('icon.ico', '.'), ('dist\\Updater.exe', '.')]
 binaries = []
-hiddenimports = ['requests', 'src.version', 'src.updater', 'src.gui', 'src.renderer', 'src.config']
+hiddenimports = ['requests', 'docx', 'openpyxl', 'PIL', 'src.version', 'src.updater', 'src.gui', 'src.renderer', 'src.math_renderer', 'src.config']
 tmp_ret = collect_all('matplotlib')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('openpyxl')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('docx')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('PIL')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
