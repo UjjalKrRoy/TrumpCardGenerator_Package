@@ -1,0 +1,5 @@
+Question	Answer	Points
+What is the smallest Prime Number?	2	10
+How many sides does a Hexagon have?	6 sides.	10
+Value of '3' in 3,456?	3,000.00	20
+What is 10 × 10 × 10?	1,000.00	20

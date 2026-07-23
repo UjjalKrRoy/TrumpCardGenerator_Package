@@ -5,6 +5,8 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext, colorchooser
 from PIL import ImageTk
 from openpyxl import load_workbook
+import csv
+from docx import Document
 from copy import deepcopy
 
 from matplotlib import font_manager
@@ -96,7 +98,7 @@ class CardGeneratorGUI:
 
         base_dir = Path(__file__).resolve().parent.parent
 
-        self.root.title("Trump Card Generator v1.0.24")
+        self.root.title("Trump Card Generator v1.0.25")
 
         icon_path = base_dir / "icon.ico"
         if icon_path.exists():
@@ -510,7 +512,7 @@ class CardGeneratorGUI:
         ttk.Button(f, text="Select Red Card", command=self.select_red_template).pack(fill="x")
         self.red_template_label = ttk.Label(f, text="Not Selected", foreground="gray", wraplength=300)
         self.red_template_label.pack(anchor="w", pady=(0,5))
-        ttk.Button(f, text="Select Excel File", command=self.select_excel).pack(fill="x", pady=2)
+        ttk.Button(f, text="Select Data File", command=self.select_excel).pack(fill="x", pady=2)
         self.excel_label = ttk.Label(f, text="Not Selected", foreground="gray", wraplength=300)
         self.excel_label.pack(anchor="w", pady=(0,5))
         ttk.Button(f, text="Select Output Folder", command=self.select_output).pack(fill="x")
@@ -537,7 +539,7 @@ class CardGeneratorGUI:
         ttk.Label(f, text="Start Row").pack(anchor="w")
         ttk.Spinbox(
             f,
-            from_=2,
+            from_=1,
             to=100000,
             textvariable=self.start_row
         ).pack(fill="x")
@@ -1049,7 +1051,13 @@ class CardGeneratorGUI:
 
     def select_excel(self):
         f = filedialog.askopenfilename(
-            filetypes=[("Excel", "*.xlsx")]
+            filetypes=[
+                ("Supported Files", "*.xlsx *.csv *.txt *.docx"),
+                ("Excel", "*.xlsx"),
+                ("CSV", "*.csv"),
+                ("Text", "*.txt"),
+                ("Word", "*.docx"),
+            ]
         )
 
         if f:
@@ -1061,7 +1069,7 @@ class CardGeneratorGUI:
             )
 
             self.status.set(
-                f"Excel: {self.excel_path.name}"
+                f"Data File: {self.excel_path.name}"
             )
 
             self.update_preview()
@@ -1473,10 +1481,137 @@ class CardGeneratorGUI:
         self.excel_label.config(text="Not Selected", foreground="gray")
         self.output_label.config(text="Not Selected", foreground="gray")
 
+
+    def load_data_file(self, filename):
+
+        import os
+        import csv
+
+        ext = os.path.splitext(filename)[1].lower()
+
+        rows = []
+
+        # ---------------- Excel ----------------
+
+        if ext == ".xlsx":
+
+            ##from openpyxl import load_workbook##
+
+            wb = load_workbook(filename, data_only=True)
+            ws = wb.active
+
+            for row in ws.iter_rows(min_row=2, values_only=True):
+
+                rows.append(
+                    (
+                        row[0],
+                        row[1],
+                        row[2]
+                    )
+                )
+
+            return rows
+
+        # ---------------- CSV ----------------
+
+        elif ext == ".csv":
+
+            with open(
+                filename,
+                newline="",
+                encoding="utf-8-sig"
+            ) as f:
+
+                reader = csv.reader(f)
+
+                next(reader, None)
+
+                for row in reader:
+
+                    rows.append(
+                        (
+                            row[0],
+                            row[1],
+                            row[2]
+                        )
+                    )
+
+            return rows
+
+        # ---------------- TXT ----------------
+
+        elif ext == ".txt":
+
+            with open(
+                filename,
+                encoding="utf-8"
+            ) as f:
+
+                first = f.readline()
+
+                if "\t" in first:
+                    delimiter = "\t"
+
+                elif "|" in first:
+                    delimiter = "|"
+
+                else:
+                    delimiter = ","
+
+                f.seek(0)
+
+                reader = csv.reader(
+                    f,
+                    delimiter=delimiter
+                )
+
+                next(reader, None)
+
+                for row in reader:
+
+                    rows.append(
+                        (
+                            row[0],
+                            row[1],
+                            row[2]
+                        )
+                    )
+
+            return rows
+
+        # ---------------- DOCX ----------------
+
+        elif ext == ".docx":
+
+            ##from docx import Document##
+
+            doc = Document(filename)
+
+            table = doc.tables[0]
+
+            for row in table.rows[1:]:
+
+                cells = row.cells
+
+                rows.append(
+                    (
+                        cells[0].text,
+                        cells[1].text,
+                        cells[2].text
+                    )
+                )
+
+            return rows
+
+        else:
+
+            raise Exception(
+                "Unsupported file format."
+            )
+
     # =====================================================
     # GENERATION
     # =====================================================
-
     def start_generation(self):
         self.status.set("Generating cards...")
         threading.Thread(target=self.generate_cards, daemon=True).start()
@@ -1488,7 +1623,7 @@ class CardGeneratorGUI:
                 0,
                 lambda: messagebox.showerror(
                     "Error",
-                    "Please select an Excel file and an Output folder."
+                    "Please select a data file and an Output folder."
                 )
             )
             return
@@ -1504,16 +1639,14 @@ class CardGeneratorGUI:
             )
             return
 
-        wb = load_workbook(self.excel_path)
-        ws = wb.active
+        rows = self.load_data_file(self.excel_path)
 
-        if ws.max_column < 3:
+        if not rows:
             self.root.after(
                 0,
                 lambda: messagebox.showerror(
-                    "Invalid Excel",
-                    "The Excel sheet must contain three columns:\n\n"
-                    "Question | Answer | Points"
+                    "Error",
+                    "No valid data found in the selected file."
                 )
             )
             return
@@ -1591,14 +1724,14 @@ class CardGeneratorGUI:
         end = self.end_row.get()
 
         if end <= 0:
-            end = ws.max_row
+            end = len(rows)
         
-        if start < 2:
+        if start < 1:
             self.root.after(
                 0,
                 lambda: messagebox.showerror(
                     "Error",
-                    "Start Row must be 2 or greater."
+                    "Start Row must be 1 or greater."
                 )
             )
             return
@@ -1613,19 +1746,12 @@ class CardGeneratorGUI:
             )
             return
 
-        if end > ws.max_row:
-            end = ws.max_row
+        if end > len(rows):
+            end = len(rows)
         
         card_no = 1
         
-        for i, row in enumerate(
-            ws.iter_rows(
-                min_row=start,
-                max_row=end,
-                values_only=True
-            ),
-            start
-        ):
+        for i, row in enumerate(rows[start-1:end], start):
 
             if not row:
                 continue
